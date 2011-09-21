@@ -2,6 +2,8 @@
 
 
 package Lab::Bus::VISA;
+our $VERSION = '2.92';
+
 use strict;
 use Lab::VISA;
 use Scalar::Util qw(weaken);
@@ -199,6 +201,19 @@ sub connection_query { # @_ = ( $connection_handle, $args = { command, read_leng
     $result=$self->connection_read($args);
     return $result;
 }
+
+
+
+#
+# calls ibclear() on the instrument - how to do on VISA?
+#
+#sub connection_clear {
+#	my $self = shift;
+#	my $connection_handle=shift;
+#
+#	ibclr($connection_handle->{'gpib_handle'});
+#}
+
 
 
 #

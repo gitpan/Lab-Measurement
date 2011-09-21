@@ -7,12 +7,14 @@
 # TODO: Access to GPIB attributes, device clear, ...
 
 package Lab::Connection::LinuxGPIB;
+our $VERSION = '2.92';
 
 use strict;
 use Scalar::Util qw(weaken);
 use Time::HiRes qw (usleep sleep);
 use Lab::Connection::GPIB;
 use Lab::Exception;
+use LinuxGpib ':all';
 
 our @ISA = ("Lab::Connection::GPIB");
 
@@ -34,10 +36,12 @@ sub new {
 	return $self;
 }
 
+#
+# Read, Write, Query from Lab::Connection are sufficient.
+# EnableTermChar, SetTermChar from Lab::Connection::GPIB are sufficient.
+#
 
-#
-# Nothing to do, Read, Write, Query from Lab::Connection are sufficient.
-#
+
 
 =pod
 

@@ -1,5 +1,7 @@
 
 package Lab::Instrument::MagnetSupply;
+our $VERSION = '2.92';
+
 use strict;
 
 # about the coding and calling conventions
@@ -27,7 +29,7 @@ my %fields = (
 	device_settings => {
 		soft_fieldconstant => undef,        # T / A
 		max_current => undef,               # A
-		max_current_deviation => 0.1,       # A
+		max_current_deviation => 0.01,      # A
 		max_sweeprate => undef,             # A / sec
 		max_sweeprate_persistent => undef,  # A / sec
 		has_heater => undef,                # 0 or 1
@@ -46,8 +48,13 @@ sub new {
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_);
 	$self->_construct(__PACKAGE__, \%fields);
-	print "Magnet power supply support is experimental. You have been warned.\n";
-	return $self;
+
+        if ($self->get_max_current()) {
+	  print "Magnet power supply support is experimental. You have been warned.\n";
+	  return $self;
+	} else {
+          die "MagnetSupply.pm: You have to set max_current for safety reasons. Aborting.\n";
+	};
 }
 
 sub get_fieldconstant {
@@ -93,6 +100,7 @@ sub set_field {
     my $self=shift;
     my $field=shift;
     my $current = $self->BtoI($field);
+    # print "set_field: target field $field T, target current $current A \n";
     $field = $self->ItoB($self->set_current($current));
     return $field;
 }
@@ -117,7 +125,7 @@ sub set_current {
 	# in this case we dont have to care about anything, just feed the power supply with the 
 	# target value and wait
 
-	$self->start_sweep_to_current($current);
+	$self->start_sweep_to_current($targetcurrent);
 	do {
 	  sleep(5);
 	} while (abs($targetcurrent-$self->get_current()) > $self->get_max_current_deviation());
@@ -154,7 +162,7 @@ sub start_sweep_to_current {
        die "Reverse magnetic field direction not supported by instrument\n";
     };
 
-    if (($targetcurrent*$now < 0) && (! $self->get_can_use_negative_current()){
+    if (($targetcurrent*$now < 0) && (! $self->get_can_use_negative_current())){
        # current value and target have different sign
        die "You're trying to sweep across zero and it is not supported by the device!\n";
     };
@@ -170,13 +178,15 @@ sub start_sweep_to_current {
 sub get_field {
     # returns the field in TESLA
     my $self=shift;
-    return $self->ItoB($self->_get_current());
+    my $field=$self->ItoB($self->_get_current());
+    return $field;
 }
 
 sub get_current {
     # returns the current in AMPS
     my $self=shift;
-    return $self->_get_current();
+    my $current=$self->_get_current();
+    return $current;
 }
 
 sub _get_current {
@@ -189,7 +199,8 @@ sub _get_current {
 # 1 == On (switch open)
 sub get_heater() {
     my $self=shift;
-    return $self->_get_heater();
+    my $heater=$self->_get_heater();
+    return $heater;
 }
 
 sub _get_heater {
@@ -215,7 +226,8 @@ sub _set_heater {
 # returns sweeprate in AMPS/SEC
 sub get_sweeprate() {
     my $self=shift;
-    return $self->_get_sweeprate();
+    my $rate=$self->_get_sweeprate();
+    return $rate;
 }
 
 sub _get_sweeprate {
@@ -228,7 +240,8 @@ sub set_sweeprate() {
     my $self=shift;
     my $rate=shift;
     if ($rate > $self->get_max_sweeprate()) { $rate=$self->get_max_sweeprate(); };
-    return $self->_set_sweeprate($rate);
+    my $newrate=$self->_set_sweeprate($rate);
+    return $newrate;
 }
 
 sub _set_sweeprate {
@@ -239,7 +252,8 @@ sub _set_sweeprate {
 sub set_hold {
     my $self=shift;
     my $value=shift;
-    return $self->_set_hold($value);
+    my $newvalue=$self->_set_hold($value);
+    return $newvalue;
 }
 
 sub _set_hold {
@@ -249,7 +263,8 @@ sub _set_hold {
 
 sub get_hold {
     my $self=shift;
-    return $self->_get_hold();
+    my $hold=$self->_get_hold();
+    return $hold;
 }
 
 sub _get_hold {
@@ -263,7 +278,7 @@ sub _set_sweep_target_current {
 
 
 sub _get_fieldconstant {
-    return UNDEF;
+    return 0;
 }
 
 

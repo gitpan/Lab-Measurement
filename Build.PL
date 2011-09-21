@@ -22,6 +22,7 @@ my $build = Module::Build->new(
         'encoding::warnings' => 0,
         'Term::ReadKey'      => 0,
         'Switch'             => 0,
+        'Clone'              => '0.31',
     },
     conflicts         => {
         'Lab::Instrument'    => '< 2.91',
@@ -30,7 +31,7 @@ my $build = Module::Build->new(
     script_files => 'scripts',
     create_readme     => 0,
     dist_author       => ['Daniel Schröer <schroeer@cpan.org>',
-                          'Andreas K. Huettel <mail@akhuettel.de>',
+                          'Andreas K. Hüttel <mail@akhuettel.de>',
                           'Daniela Taubert <daniela.taubert@physik.uni-muenchen.de>', 
                           'Florian Olbrich <florian.olbrich@physik.uni-r.de>'
                          ],

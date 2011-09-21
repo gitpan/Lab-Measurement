@@ -53,6 +53,8 @@ sub Appendix {	# $line, $file, $package
 
 
 package Lab::Exception;
+our $VERSION = '2.92';
+
 
 #
 # un/comment the following BEGIN clause to slap in the custom base class above
@@ -167,5 +169,4 @@ use Exception::Class (
 );
 
 
-$Lab::Exception::VERSION='2.90';
 1;

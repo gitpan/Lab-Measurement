@@ -1,10 +1,6 @@
 #!/usr/bin/perl -w
 
-#
-# general VISA Connection class for Lab::Bus::VISA
-# This one digests VISA resource names
-#
-package Lab::Connection::VISA;
+package Lab::Connection::IsoBus;
 our $VERSION = '2.92';
 
 use strict;
@@ -16,8 +12,8 @@ use Lab::Exception;
 our @ISA = ("Lab::Connection");
 
 our %fields = (
-	bus_class => 'Lab::Bus::VISA',
-	resource_name => undef,
+	bus_class => 'Lab::Bus::IsoBus',
+	isobus_address => undef,
 	wait_status=>0, # usec;
 	wait_query=>10, # usec;
 	read_length=>1000, # bytes
@@ -38,7 +34,7 @@ sub new {
 1;
 
 #
-# That's all, all that was needed was the additional field "resource_name".
+# That's all, all that was needed was the additional field "isobus_address".
 #
 
 
@@ -48,23 +44,22 @@ sub new {
 
 =head1 NAME
 
-Lab::Connection::VISA - VISA-type connection class which uses L<Lab::Bus::VISA> and thus 
-NI VISA (L<Lab::VISA>) as a backend.
+Lab::Connection::IsoBus - IsoBus connection class which uses L<Lab::Bus::IsoBus> as a backend.
 
 =head1 SYNOPSIS
 
-This is not called directly. To make a VISA suppporting instrument use Lab::Connection::VISA, set
+This is not called directly. To make an Isobus instrument use Lab::Connection::IsoBus, set
 the connection_type parameter accordingly:
 
-$instrument = new HP34401A(
-   connection_type => 'VISA',
-   resource_name => 'GPIB0::14::INSTR',
+$instrument = new ILM210(
+   connection_type => 'IsoBus',
+   isobus_address => 3,
 )
 
 =head1 DESCRIPTION
 
-C<Lab::Connection::VISA> provides a VISA-type connection with L<Lab::Bus::VISA> using 
-NI VISA (L<Lab::VISA>) as backend.
+C<Lab::Connection::IsoBus> provides a connection with L<Lab::Bus::IsoBus>, 
+transparently handled via a pre-existing bus and connection object (e.g. serial or GPIB).
 
 It inherits from L<Lab::Connection>.
 
@@ -73,9 +68,9 @@ It inherits from L<Lab::Connection>.
 
 =head2 new
 
- my $connection = new Lab::Connection::VISA(
-   connection_type => 'VISA',
-   resource_name => 'GPIB0::14::INSTR',
+ my $connection = new Lab::Connection::IsoBus(
+   connection_type => 'IsoBus',
+   isobus_address => 3,
  }
 
 
@@ -89,12 +84,12 @@ This just falls back on the methods inherited from L<Lab::Connection>.
 Provides unified access to the fields in initial @_ to all the child classes.
 E.g.
 
- $GPIB_Address=$instrument->Config(gpib_address);
+ $IsoBus_Address=$instrument->Config(isobus_address);
 
 Without arguments, returns a reference to the complete $self->Config aka @_ of the constructor.
 
  $Config = $connection->Config();
- $GPIB_Address = $connection->Config()->{'gpib_address'};
+ $IsoBus_Address = $connection->Config()->{'isobus_address'};
  
 =head1 CAVEATS/BUGS
 
@@ -106,13 +101,13 @@ Probably few. Mostly because there's not a lot to be done here. Please report.
 
 =item * L<Lab::Connection>
 
-=item * L<Lab::Connection::GPIB>
+=item * L<Lab::Bus::IsoBus>
 
 =back
 
 =head1 AUTHOR/COPYRIGHT
 
- Copyright 2011      Florian Olbrich
+ Copyright 2011      Andreas K. Hüttel
 
 This library is free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.

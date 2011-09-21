@@ -2,6 +2,8 @@
 
 
 package Lab::Bus::LinuxGPIB;
+our $VERSION = '2.92';
+
 use strict;
 use Scalar::Util qw(weaken);
 use Time::HiRes qw (usleep sleep);
@@ -218,6 +220,63 @@ sub connection_write { # @_ = ( $connection_handle, $args = { command, wait_stat
 
 	return 1;
 }
+
+
+
+sub connection_settermchar { # @_ = ( $connection_handle, $termchar
+	my $self = shift;
+	my $connection_handle=shift;
+	my $termchar =shift; # string termination character as string
+
+	my $ib_bits=undef;	# hash ref
+	my $ibstatus = undef;
+
+        my $h=$connection_handle->{'gpib_handle'};
+
+        my $arg=ord($termchar);
+
+	$ibstatus=ibconfig($connection_handle->{'gpib_handle'}, 15, $arg);
+
+	$ib_bits=$self->ParseIbstatus($ibstatus);
+
+	if($ib_bits->{'ERR'}==1) {
+		Lab::Exception::GPIBError->throw(
+			error => sprintf("Error in " . __PACKAGE__ . "::connection_settermchar(): ibeos failed with status %x\n", $ibstatus) . Dumper($ib_bits) . Lab::Exception::Base::Appendix(),
+			ibsta => $ibstatus,
+			ibsta_hash => $ib_bits,
+		);
+	}
+
+	return 1;
+}
+
+sub connection_enabletermchar { # @_ = ( $connection_handle, 0/1 off/on
+	my $self = shift;
+	my $connection_handle=shift;
+	my $arg=shift;
+
+	my $ib_bits=undef;	# hash ref
+	my $ibstatus = undef;
+
+        my $h=$connection_handle->{'gpib_handle'};
+
+	$ibstatus=ibconfig($connection_handle->{'gpib_handle'}, 12, $arg);
+
+	$ib_bits=$self->ParseIbstatus($ibstatus);
+
+	if($ib_bits->{'ERR'}==1) {
+		Lab::Exception::GPIBError->throw(
+			error => sprintf("Error in " . __PACKAGE__ . "::connection_enabletermchar(): ibeos failed with status %x\n", $ibstatus) . Dumper($ib_bits) . Lab::Exception::Base::Appendix(),
+			ibsta => $ibstatus,
+			ibsta_hash => $ib_bits,
+		);
+	}
+
+	return 1;
+}
+
+
+
 
 
 #

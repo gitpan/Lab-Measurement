@@ -1,4 +1,6 @@
 package Lab::Instrument::SR830;
+our $VERSION = '2.92';
+
 
 use strict;
 use Lab::Instrument;

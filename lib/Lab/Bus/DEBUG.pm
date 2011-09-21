@@ -31,6 +31,8 @@ sub OnInit {
 
 
 package Lab::Bus::DEBUG;
+our $VERSION = '2.92';
+
 use strict;
 use threads;
 use threads::shared;

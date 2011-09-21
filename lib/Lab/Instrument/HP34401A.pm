@@ -1,5 +1,7 @@
+#!/usr/bin/perl
 
 package Lab::Instrument::HP34401A;
+our $VERSION = '2.92';
 
 use strict;
 use Scalar::Util qw(weaken);
@@ -117,6 +119,19 @@ sub get_resistance {
     $resolution="DEF" unless (defined $resolution);
     
 	my $cmd=sprintf("MEASure:SCALar:RESIStance? %s,%s",$range,$resolution);
+	my $value = $self->query($cmd);
+    return $value;
+}
+
+
+sub get_4wresistance {
+    my $self=shift;
+    my ($range,$resolution)=@_;
+    
+    $range="DEF" unless (defined $range);
+    $resolution="DEF" unless (defined $resolution);
+    
+	my $cmd=sprintf("MEASure:SCALar:FRESIStance? %s,%s",$range,$resolution);
 	my $value = $self->query($cmd);
     return $value;
 }

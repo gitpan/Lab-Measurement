@@ -13,6 +13,7 @@
 # TODO: Access to GPIB attributes, device clear, ...
 
 package Lab::Connection::GPIB;
+our $VERSION = '2.92';
 
 use Lab::Connection;
 use strict;
@@ -71,8 +72,26 @@ sub new {
 # }
 
 
+# now comes GPIB-specific stuff
+
+sub EnableTermChar { # 0/1 off/on
+  my $self=shift;
+  my $enable=shift;
+  my $result=$self->bus()->connection_enabletermchar($self->connection_handle(), $enable);
+  return $result;
+}
+
+sub SetTermChar { # the character as string
+  my $self=shift;
+  my $termchar=shift;
+  my $result=$self->bus()->connection_settermchar($self->connection_handle(), $termchar);
+  return $result;
+}
+
 
 1;
+
+
 
 =pod
 
