@@ -1,5 +1,5 @@
 package Lab::Instrument::YokogawaGS200;
-our $VERSION = '2.92';
+our $VERSION = '2.93';
 
 use strict;
 use Switch;
@@ -178,8 +178,7 @@ sub _get {
     my $self=shift;
     my $cmd=":SOURce:LEVel?";
     my $result=$self->connection()->Query( command  => $cmd );
-    $result=~/....([\+\-\d\.E]*)/;
-    return $1;
+    return $result;
 }
 
 sub set_current_mode {

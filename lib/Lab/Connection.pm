@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 package Lab::Connection;
-our $VERSION = '2.92';
+our $VERSION = '2.93';
 
 use strict;
 
@@ -136,6 +136,29 @@ sub BrutalQuery {
 #
 
 
+#
+# Fill $self->device_settings() from config parameters
+#
+sub configure {
+	my $self=shift;
+	my $config=shift;
+
+	if( ref($config) ne 'HASH' ) {
+		Lab::Exception::CorruptParameter->throw( error=>'Given Configuration is not a hash.' . Lab::Exception::Base::Appendix());
+	}
+	else {
+		#
+		# fill matching fields definded in %fields from the configuration hash ($self->config )
+		#
+		for my $fields_key ( keys %{$self->{_permitted}} ) {
+			{	# restrict scope of "no strict"
+				no strict 'refs';
+				$self->$fields_key($config->{$fields_key}) if exists $config->{$fields_key};
+			}
+		}
+	}
+}
+
 
 #
 # Call this in inheriting class's constructors to conveniently initialize the %fields object data
@@ -143,7 +166,6 @@ sub BrutalQuery {
 sub _construct {	# _construct(__PACKAGE__, %fields);
 	(my $self, my $package, my $fields) = (shift, shift, shift);
 	my $class = ref($self);
-	my $twin = undef;
 
 	foreach my $element (keys %{$fields}) {
 		$self->{_permitted}->{$element} = $fields->{$element};
@@ -151,9 +173,11 @@ sub _construct {	# _construct(__PACKAGE__, %fields);
 	@{$self}{keys %{$fields}} = values %{$fields};
 
 	if( $class eq $package ) {
+		$self->configure($self->config());
 		$self->_setbus();
 	}
 }
+
 
 
 #
