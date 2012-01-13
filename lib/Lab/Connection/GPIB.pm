@@ -13,7 +13,7 @@
 # TODO: Access to GPIB attributes, device clear, ...
 
 package Lab::Connection::GPIB;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use Lab::Connection;
 use strict;
@@ -37,10 +37,10 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	# Parameter checking
-	if( $self->config('gpib_address') !~ /^[0-9]*$/ ) {
+	if( !defined $self->config('gpib_address') || $self->config('gpib_address') !~ /^[0-9]*$/ ) {
 		Lab::Exception::CorruptParameter->throw( error => "No GPIB address specified! I can't work like this.\n" );
 	}
 

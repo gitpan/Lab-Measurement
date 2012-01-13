@@ -31,7 +31,7 @@ sub OnInit {
 
 
 package Lab::Bus::DEBUG;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use threads;
@@ -68,7 +68,7 @@ sub new {
 	my $class = ref($proto) || $proto;
 	my $twin = undef;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	# no twin search - just register
 	if( $class eq __PACKAGE__ ) { # careful - do only if this is not a parent class constructor
@@ -170,7 +170,7 @@ sub connection_write { # @_ = ( $connection_handle, $args = { command, wait_stat
 	else { $args={@_} }
 
 	my $command = $args->{'command'} || undef;
-	if (!defined $command) { Lab::Exception::CorruptParameter->throw( error => "No command given to " . __PACKAGE__ . "::connection_write\n"  . Lab::Exception::Base::Appendix()); }
+	if (!defined $command) { Lab::Exception::CorruptParameter->throw( error => "No command given to " . __PACKAGE__ . "::connection_write\n"); }
 	my $brutal = $args->{'brutal'} || $self->brutal();
 	my $read_length = $args->{'read_length'} || $self->read_length();
 	my $wait_status = $args->{'wait_status'} || $self->wait_status();

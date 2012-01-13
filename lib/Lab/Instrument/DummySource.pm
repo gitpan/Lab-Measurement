@@ -1,14 +1,19 @@
 package Lab::Instrument::DummySource;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Lab::Instrument::Source;
+use Data::Dumper;
 
 our @ISA=('Lab::Instrument::Source');
 our $maxchannels=16;
 
-my %fields = (
+our %fields = (
 	supported_connections => [ 'none' ],
+	
+	connection_settings => {
+		connection_type => 'none',
+	},
 
 	device_settings => {
 		gate_protect            => 1,
@@ -27,20 +32,17 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_);
-	$self->_construct(__PACKAGE__, \%fields);
-
-	# already called in Lab::Instrument::Source, but call it again to respect default values in local channel_defaultconfig
-	$self->configure($self->config());
-	$self->device_settings($self->config('device_settings')) if defined $self->config('device_settings') && ref($self->config('device_settings')) eq 'HASH';
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
     print "DS: Created dummy instrument with config\n";
-    while (my ($k,$v)=each %{$self->device_settings}) {
+    while (my ($k,$v)=each %{$self->device_settings()}) {
+    	$v='undef' if !defined($v);
         print "DS:   $k -> $v\n";
     }
     for (my $i=1; $i<=$maxchannels; $i++) {
       my $tmp="last_volt_$i";
       $self->{$tmp}=0;
-      my $tmp="last_range_$i";
+      $tmp="last_range_$i";
       $self->{$tmp}=1;
     }
     return $self
@@ -49,7 +51,8 @@ sub new {
 sub _set_voltage {
     my $self=shift;
     my $voltage=shift;
-    my $args={@_};
+    my $args = {};
+	if (ref $_[0] eq 'HASH') { $args=shift } else { $args={@_} }
     my $channel = $args->{'channel'} || $self->default_channel();
 
     my $tmp="last_volt_$channel";
@@ -60,7 +63,8 @@ sub _set_voltage {
 
 sub _get_voltage {
     my $self=shift;
-    my $args={@_};
+    my $args = {};
+	if (ref $_[0] eq 'HASH') { $args=shift } else { $args={@_} }
     my $channel = $args->{'channel'} || $self->default_channel();
 
     my $tmp="last_volt_$channel";

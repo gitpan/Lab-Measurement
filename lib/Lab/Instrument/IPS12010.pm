@@ -1,6 +1,6 @@
 
 package Lab::Instrument::IPS12010;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Lab::Instrument;
@@ -30,7 +30,7 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_);
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 	print "IPS12010 superconducting magnet supply code is highly experimental and untested. You have been warned.\n";
 
 	$self->connection()->SetTermChar(chr(13));
@@ -90,7 +90,7 @@ sub ips_read_parameter {
     my $parameter=shift;
     my $result=$self->query("R$parameter\r");
     chomp $result;
-    $result =~ s/^R//;
+    $result =~ s/^\s*R//;
     $result =~ s/\r//;
     return $result;
 }

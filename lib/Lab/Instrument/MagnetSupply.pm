@@ -1,6 +1,6 @@
 
 package Lab::Instrument::MagnetSupply;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 
@@ -22,7 +22,7 @@ use strict;
 
 our @ISA=('Lab::Instrument');
 
-my %fields = (
+our %fields = (
 	supported_connections => [],
 
 	# supported config options
@@ -47,7 +47,12 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_);
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
+	
+	#
+	# Temporary workaround to get max_current. This should happen in _construct().
+	#
+	$self->configure($self->config());
 
         if ($self->get_max_current()) {
 	  print "Magnet power supply support is experimental. You have been warned.\n";

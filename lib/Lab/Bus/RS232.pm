@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 package Lab::Bus::RS232;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use warnings;
@@ -31,7 +31,7 @@ BEGIN {
 our $RS232_DEBUG = 0;
 our $WIN32 = ($^O eq "MSWin32") ? 1 : 0;
 
-my %fields = (
+our %fields = (
 	client => undef,
 	type => 'RS232',
 	port => '/dev/ttyS0',
@@ -51,7 +51,7 @@ sub new {
 	my $class = ref($proto) || $proto;
 	my $twin = undef;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 
 	# parameter parsing
@@ -97,7 +97,7 @@ sub new {
 		$self->client()->stopbits($self->config('stopbits')) if (defined $self->config('stopbits'));
 	}
 	else {
-		Lab::Exception::Error->throw( error => "Error initializing the serial interface\n" . Lab::Exception::Base::Appendix() );
+		Lab::Exception::Error->throw( error => "Error initializing the serial interface\n" );
 	}
 
 	return $self;
@@ -189,7 +189,7 @@ sub _direct_write { # _direct_write( command => $cmd )   this is for inheriting 
 
 	if(!defined $command) {
 		Lab::Exception::CorruptParameter->throw(
-			error => "No command given to " . __PACKAGE__ . "::connection_write().\n" . Lab::Exception::Base::Appendix(),
+			error => "No command given to " . __PACKAGE__ . "::connection_write().\n",
 		);
 	}
 	else {
@@ -199,12 +199,12 @@ sub _direct_write { # _direct_write( command => $cmd )   this is for inheriting 
 
 	if(!$status && !$brutal) {
 		Lab::Exception::RS232Error->throw(
-			error => "Error in " . __PACKAGE__ . "::connection_write() while executing $command: write failed.\n" . Lab::Exception::Base::Appendix(),
+			error => "Error in " . __PACKAGE__ . "::connection_write() while executing $command: write failed.\n",
 			status => $status,
 		);
 	}
 	elsif($brutal) {
-		warn "(brutal=>Ignored) error in " . __PACKAGE__ . "::connection_write() while executing $command: write failed.\n" . Lab::Exception::Base::Appendix();
+		warn "(brutal=>Ignored) error in " . __PACKAGE__ . "::connection_write() while executing $command: write failed.\n";
 	}
 
 	return 1;

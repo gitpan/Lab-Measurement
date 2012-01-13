@@ -1,15 +1,14 @@
 #!/usr/bin/perl -w
 
 package Lab::Bus;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 
+use Lab::Exception;
 use Time::HiRes qw (usleep sleep);
 use POSIX; # added for int() function
-
 use Scalar::Util qw(weaken);
-
 use Carp qw(croak cluck);
 use Data::Dumper;
 our $AUTOLOAD;
@@ -42,7 +41,7 @@ sub new {
 	else { $config={@_} }
 	my $self={};
 	bless ($self, $class);
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	$self->config($config);
 
@@ -56,9 +55,14 @@ sub new {
 #
 # Call this in inheriting class's constructors to conveniently initialize the %fields object data
 #
-sub _construct {	# _construct(__PACKAGE__, %fields);
-	(my $self, my $package, my $fields) = (shift, shift, shift);
+sub _construct {	# _construct(__PACKAGE__);
+	(my $self, my $package) = (shift, shift);
 	my $class = ref($self);
+	my $fields = undef;
+	{
+		no strict 'refs';
+		$fields = *${\($package.'::fields')}{HASH};
+	}	
 	my $twin = undef;
 
 	foreach my $element (keys %{$fields}) {
@@ -130,7 +134,7 @@ sub AUTOLOAD {
 
 	unless (exists $self->{_permitted}->{$name} ) {
 		cluck("AUTOLOAD in " . __PACKAGE__ . " couldn't access field '${name}'.\n");
-		Lab::Exception::Error->throw( error => "AUTOLOAD in " . __PACKAGE__ . " couldn't access field '${name}'.\n"  . Lab::Exception::Base::Appendix());
+		Lab::Exception::Error->throw( error => "AUTOLOAD in " . __PACKAGE__ . " couldn't access field '${name}'.\n");
 	}
 
 	if (@_) {

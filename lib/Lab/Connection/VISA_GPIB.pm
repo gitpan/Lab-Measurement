@@ -11,7 +11,7 @@
 
 
 package Lab::Connection::VISA_GPIB;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Lab::Bus::VISA;
@@ -37,7 +37,7 @@ sub new {
 	my $class = ref($proto) || $proto;
 	my $twin = undef;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class, parameter checks
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	return $self;
 }
@@ -56,7 +56,7 @@ sub _setbus {
 	my $bus_class = $self->bus_class();
 
 	no strict 'refs';
-	$self->bus($bus_class->new($self->config())) || Lab::Exception::Error->throw( error => "Failed to create bus $bus_class in " . __PACKAGE__ . "::_setbus.\n"  . Lab::Exception::Base::Appendix());
+	$self->bus($bus_class->new($self->config())) || Lab::Exception::Error->throw( error => "Failed to create bus $bus_class in " . __PACKAGE__ . "::_setbus.\n");
 	use strict;
 
 	#

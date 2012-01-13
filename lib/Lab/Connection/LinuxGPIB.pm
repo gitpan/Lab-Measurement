@@ -7,14 +7,16 @@
 # TODO: Access to GPIB attributes, device clear, ...
 
 package Lab::Connection::LinuxGPIB;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Scalar::Util qw(weaken);
 use Time::HiRes qw (usleep sleep);
 use Lab::Connection::GPIB;
 use Lab::Exception;
-use LinuxGpib ':all';
+
+eval { require LinuxGpib; LinuxGpib->import(); };
+die("Failed to load LinuxGpib in Lab::Connection::LinuxGPIB!\n$@") if ($@);
 
 our @ISA = ("Lab::Connection::GPIB");
 
@@ -23,6 +25,7 @@ our %fields = (
 	wait_status=>0, # usec;
 	wait_query=>10, # usec;
 	read_length=>1000, # bytes
+	timeout=>1, # seconds
 );
 
 
@@ -31,13 +34,54 @@ sub new {
 	my $class = ref($proto) || $proto;
 	my $twin = undef;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	return $self;
 }
 
+sub Write {
+	my $self=shift;
+	my $options=undef;
+	if (ref $_[0] eq 'HASH') { $options=shift }
+	else { $options={@_} }
+	
+	my $timeout = $options->{'timeout'} || $self->timeout();
+	$self->bus()->timeout($self->connection_handle(), $timeout);
+	
+	return $self->bus()->connection_write($self->connection_handle(), $options);
+}
+
+
+sub Read {
+	my $self=shift;
+	my $options=undef;
+	if (ref $_[0] eq 'HASH') { $options=shift }
+	else { $options={@_} }
+	
+	my $timeout = $options->{'timeout'} || $self->timeout();
+	$self->bus()->timeout($self->connection_handle(), $timeout);
+
+	return $self->bus()->connection_read($self->connection_handle(), $options);
+}
+
+sub Query {
+	my $self=shift;
+	my $options=undef;
+	if (ref $_[0] eq 'HASH') { $options=shift }
+	else { $options={@_} }
+
+	my $wait_query=$options->{'wait_query'} || $self->wait_query();
+	my $timeout = $options->{'timeout'} || $self->timeout();
+	$self->bus()->timeout($self->connection_handle(), $timeout);
+	
+	$self->Write( $options );
+	usleep($wait_query);
+	return $self->Read($options);
+}
+
+
 #
-# Read, Write, Query from Lab::Connection are sufficient.
+# Query from Lab::Connection is sufficient
 # EnableTermChar, SetTermChar from Lab::Connection::GPIB are sufficient.
 #
 

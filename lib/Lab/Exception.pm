@@ -17,43 +17,21 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_);
+	$self->Trace(1); # Append stack trace to string representation by default
 	return $self;
 }
 
-#
-# convenience routine - receives __LINE__, __PACKAGE__, __FILE__, subroutine (typically) and returns a uniform appendix made up from this information
-#
-sub Appendix {	# $line, $file, $package
-	shift if( ref($_[0]) eq 'HASH' ); # omit $self
-	my $line=undef;
-	my $package=undef;
-	my $file=undef;
-	my $subroutine=undef;
-	if(scalar(@_) > 0) {
-		($line, $package, $file, $subroutine) = ( shift, shift, shift, shift);
-	}
-	else {
-		# looks like the "line"-feedback of caller($i) is the line where the function of level $i is called
-		# so to get the line where the exception occured, query the line of caller(0)
-		($line, $package, $file, $subroutine) = ( (caller(0))[2], (caller(1))[0,1,3] );
-	}
-
-	my $appendix = "";
-	$appendix .= "   Subroutine:    $subroutine\n" if defined($subroutine);
-	$appendix .= "   Line:    $line\n" if defined($line);
-	$appendix .= "   File:    $file\n" if defined($file);
-	$appendix = "\n" . $appendix if($appendix ne "");
-
-	return $appendix;
+sub full_message {
+	my $self=shift;
+	
+	return 	$self->message() .
+			"\nFile: " . $self->file() . 
+			"\nPackage: " . $self->package() .
+			"\nLine:" . $self->package() . "\n";
 }
 
-
-
-
-
-
 package Lab::Exception;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 
 #
@@ -64,7 +42,7 @@ BEGIN { $Exception::Class::BASE_EXC_CLASS = 'Lab::Exception::Base'; }
 use Exception::Class (
 
 	Lab::Exception::Error => {
-		description => 'An error.'
+		description => 'An error.',
 	},
 
 	#
@@ -77,6 +55,7 @@ use Exception::Class (
 							'invalid_parameter',	# put the invalid parameter here
 		],
 	},
+	
 
 	Lab::Exception::Timeout => {
 		isa 		=> 'Lab::Exception::Error',
@@ -151,6 +130,20 @@ use Exception::Class (
 							'status', # the status returned
 							'command', # the command that led to the timeout
 							'data', # the data read up to the abort
+		]
+	},
+	
+	#
+	# errors and warnings sent by devices
+	#
+
+	Lab::Exception::DeviceError => {
+		isa			=> 'Lab::Exception::Error',
+		description	=> 'An error was sent by a device.',
+		fields		=> [
+							'code', # an error code, if applicable
+							'message', # an error message, if present
+							'command', # the command that produced the error
 		]
 	},
 

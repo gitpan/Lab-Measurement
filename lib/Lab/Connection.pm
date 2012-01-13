@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 package Lab::Connection;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 
@@ -23,6 +23,7 @@ our %fields = (
 	config => undef,
 	type => undef,	# e.g. 'GPIB'
 	ins_debug=>0,  # do we need additional output?
+	timeout=>1, # in seconds
 );
 
 
@@ -34,9 +35,11 @@ sub new {
 	else { $config={@_} }
 	my $self={};
 	bless ($self, $class);
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	$self->config($config);
+	
+	
 
 	return $self;
 }
@@ -53,7 +56,7 @@ sub Clear {
 	
 	return $self->bus()->connection_clear($self->connection_handle()) if ($self->bus()->can('connection_clear'));
 	# error message
-	warn "Clear function is not implemented in the bus ".ref($self->bus())."\n"  . Lab::Exception::Base::Appendix();
+	warn "Clear function is not implemented in the bus ".ref($self->bus())."\n";
 }
 
 
@@ -126,8 +129,15 @@ sub BrutalQuery {
 }
 
 
-
-
+sub timeout {
+	my $self=shift;
+	my $timo=shift;
+	
+	return $self->{'timeout'} if(!defined $timo);
+	
+	$self->{'timeout'} = $timo;
+	$self->bus()->timeout($self->connection_handle(), $timo) if defined($self->bus()); # if called by $self->configure() before the bus is created.
+}
 
 
 
@@ -144,7 +154,7 @@ sub configure {
 	my $config=shift;
 
 	if( ref($config) ne 'HASH' ) {
-		Lab::Exception::CorruptParameter->throw( error=>'Given Configuration is not a hash.' . Lab::Exception::Base::Appendix());
+		Lab::Exception::CorruptParameter->throw( error=>'Given Configuration is not a hash.');
 	}
 	else {
 		#
@@ -163,9 +173,14 @@ sub configure {
 #
 # Call this in inheriting class's constructors to conveniently initialize the %fields object data
 #
-sub _construct {	# _construct(__PACKAGE__, %fields);
-	(my $self, my $package, my $fields) = (shift, shift, shift);
+sub _construct {	# _construct(__PACKAGE__);
+	(my $self, my $package) = (shift, shift);
 	my $class = ref($self);
+	my $fields = undef;
+	{
+		no strict 'refs';
+		$fields = *${\($package.'::fields')}{HASH};
+	}	
 
 	foreach my $element (keys %{$fields}) {
 		$self->{_permitted}->{$element} = $fields->{$element};
@@ -173,8 +188,9 @@ sub _construct {	# _construct(__PACKAGE__, %fields);
 	@{$self}{keys %{$fields}} = values %{$fields};
 
 	if( $class eq $package ) {
-		$self->configure($self->config());
+		$self->configure($self->config()); # so that _setbus has access to all the fields
 		$self->_setbus();
+		$self->configure($self->config()); # for configuration that needs the bus to be set (timeout())
 	}
 }
 
@@ -192,7 +208,7 @@ sub _setbus { # $self->setbus() create new or use existing bus
 	my $self=shift;
 	my $bus_class = $self->bus_class();
 
-	$self->bus(eval("require $bus_class; new $bus_class(\$self->config());")) || Lab::Exception::Error->throw( error => "Failed to create bus $bus_class in " . __PACKAGE__ . "::_setbus.\n"  . Lab::Exception::Base::Appendix());
+	$self->bus(eval("require $bus_class; new $bus_class(\$self->config());")) || Lab::Exception::Error->throw( error => "Failed to create bus $bus_class in " . __PACKAGE__ . "::_setbus.\n");
 
 	# again, pass it all.
 	$self->connection_handle( $self->bus()->connection_new( $self->config() ));
@@ -227,7 +243,7 @@ sub AUTOLOAD {
 	$name =~ s/.*://; # strip fully qualified portion
 
 	unless (exists $self->{_permitted}->{$name} ) {
-		Lab::Exception::Error->throw( error => "AUTOLOAD in " . __PACKAGE__ . " couldn't access field '${name}'.\n"  . Lab::Exception::Base::Appendix());
+		Lab::Exception::Error->throw( error => "AUTOLOAD in " . __PACKAGE__ . " couldn't access field '${name}'.\n");
 	}
 
 	if (@_) {

@@ -4,7 +4,7 @@
 #
 
 package Lab::Instrument::TemperatureControl::TLK43;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Lab::Instrument;
@@ -15,7 +15,7 @@ use Carp;
 
 our @ISA = ("Lab::Instrument");
 
-my %fields = (
+our %fields = (
 	supported_connections => [ 'MODBUS_RS232' ],
 	slave_address => undef,
 	connection => undef,

@@ -4,7 +4,7 @@
 # Connection class for Lab::Bus::MODBUS_RS232
 #
 package Lab::Connection::MODBUS_RS232;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Scalar::Util qw(weaken);
@@ -25,7 +25,7 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	return $self;
 }

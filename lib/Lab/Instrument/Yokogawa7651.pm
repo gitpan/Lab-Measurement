@@ -1,5 +1,5 @@
 package Lab::Instrument::Yokogawa7651;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Switch;
@@ -9,7 +9,7 @@ use Lab::Instrument::Source;
 
 our @ISA=('Lab::Instrument::Source');
 
-my %fields = (
+our %fields = (
 	supported_connections => [ 'GPIB', 'VISA', 'DEBUG' ],
 
 	# default settings for the supported connections
@@ -34,11 +34,7 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_);
-	$self->_construct(__PACKAGE__, \%fields);
-
-	# already called in Lab::Instrument::Source, but call it again to respect default values in local channel_defaultconfig
-	$self->configure($self->config());
-	$self->device_settings($self->config('device_settings')) if defined $self->config('device_settings') && ref($self->config('device_settings')) eq 'HASH';
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
     
     return $self;
 }
@@ -56,6 +52,7 @@ sub _set_voltage_auto {
 }
 
 # huh? something is strange here
+# yes.
 sub set_current {
     my $self=shift;
     my $voltage=shift;
@@ -65,16 +62,13 @@ sub set_current {
 sub _set {
     my $self=shift;
     my $value=shift;
-    my $cmd=sprintf("S%e",$value);
-    $self->write( $cmd );
-    $cmd="E";
-    $self->write( $cmd );
-}
-
-sub _set_auto {
-    my $self=shift;
-    my $value=shift;
-    my $cmd=sprintf("SA%e",$value);
+    my $cmd="";
+    if($self->autorange()) {
+    	$cmd=sprintf("SA%e",$value);
+    }
+    else {
+    	$cmd=sprintf("S%e",$value);
+    }
     $self->write( $cmd );
     $cmd="E";
     $self->write( $cmd );
@@ -252,7 +246,7 @@ sub get_range{
             case 4 {$range=1} #1V
             case 5 {$range=10} #10V
             case 6 {$range=30} #30V
-            else { Lab::Exception::CorruptParameter->throw( error=>"Range $range_nr not defined\n" . Lab::Exception::Base::Appendix() ); }
+            else { Lab::Exception::CorruptParameter->throw( error=>"Range $range_nr not defined\n" ); }
         }
     }
     elsif ($func_nr==5){
@@ -260,10 +254,10 @@ sub get_range{
             case 4 {$range=1e-3} #1mA
             case 5 {$range=10e-3} #10mA
             case 6 {$range=100e-3} #100mA
-            else { Lab::Exception::CorruptParameter->throw( error=>"Range $range_nr not defined\n" . Lab::Exception::Base::Appendix() ); }
+            else { Lab::Exception::CorruptParameter->throw( error=>"Range $range_nr not defined\n" ); }
         }
     }
-    else { Lab::Exception::CorruptParameter->throw( error=>"Function not defined: $func_nr\n" . Lab::Exception::Base::Appendix() ); }
+    else { Lab::Exception::CorruptParameter->throw( error=>"Function not defined: $func_nr\n" ); }
     #printf "$range\n";
     return $range
 }
@@ -271,7 +265,7 @@ sub get_range{
 sub set_run_mode {
     my $self=shift;
     my $value=shift;
-    if ($value!=0 and $value!=1) { Lab::Exception::CorruptParameter->throw( error=>"Run Mode $value not defined\n" . Lab::Exception::Base::Appendix() ); }
+    if ($value!=0 and $value!=1) { Lab::Exception::CorruptParameter->throw( error=>"Run Mode $value not defined\n" ); }
     my $cmd=sprintf("M%u",$value);
     $self->write($cmd);
 }
@@ -328,6 +322,28 @@ sub get_status {
         $status<<=1;
     }
     return %result;
+}
+
+#
+# Accessor implementations
+#
+
+sub autorange() {
+	my $self = shift;
+	
+	return $self->{'autorange'} if scalar(@_)==0;
+	my $value = shift;
+	
+	if($value==0) {
+		$self->{'autorange'} = 0;
+	}
+	elsif($value==1) {
+		warn("Warning: Autoranging can give you some nice voltage spikes on the Yokogawa7651. You've been warned!\n");
+		$self->{'autorange'} = 1;
+	}
+	else {
+		Lab::Exception::CorruptParameter->throw( error=>"Illegal value for autorange(), only 1 or 0 accepted.\n" );
+	}
 }
 
 1;

@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 package Lab::Connection::DEBUG;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Time::HiRes qw (usleep sleep);
@@ -31,7 +31,7 @@ sub new {
 	my $class = ref($proto) || $proto;
 	my $twin = undef;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 	return $self;
 }

@@ -1,5 +1,5 @@
 package Lab::Instrument::HP83732A;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use strict;
 use Lab::Instrument;
@@ -25,7 +25,7 @@ sub new {
 	my $proto = shift;
 	my $class = ref($proto) || $proto;
 	my $self = $class->SUPER::new(@_);
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 	return $self;
 }
 

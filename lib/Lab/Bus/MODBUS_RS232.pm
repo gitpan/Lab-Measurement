@@ -12,7 +12,7 @@
 use strict;
 
 package Lab::Bus::MODBUS_RS232;
-our $VERSION = '2.93';
+our $VERSION = '2.94';
 
 use Lab::Bus::RS232;
 use Carp;
@@ -33,7 +33,7 @@ my @crctab = ();
 
 my $ConnSemaphore = Thread::Semaphore->new();	# a semaphore to prevent simultaneous use of the bus by multiple threads
 
-my %fields = (
+our %fields = (
 	type => 'RS232',
 	crc_init => 0xFFFF,
  	crc_poly => 0xA001,
@@ -45,7 +45,7 @@ sub new {
 	my $class = ref($proto) || $proto;
 	my $twin = undef;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class
-	$self->_construct(__PACKAGE__, \%fields);
+	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
 
 	# search for twin in %Lab::Bus::BusList. If there's none, place $self there and weaken it.
@@ -82,7 +82,7 @@ sub connection_new {
 		$slave_address = $args->{'slave_address'};
 	}
 	else {
-		Lab::Exception::CorruptParameter->throw( error => 'No or invalid MODBUS Slave Address given. I can\'t work like this!' . Lab::Exception::Base::Appendix(), );
+		Lab::Exception::CorruptParameter->throw( error => 'No or invalid MODBUS Slave Address given. I can\'t work like this!', );
 	}
 
 	$connection_handle = { valid => 1, type => "MODBUS_RS232", slave_address => $slave_address };
@@ -116,9 +116,9 @@ sub connection_read { # @_ = ( $connection_handle, $args = { function, mem_addre
 	my @AnswerArr = ();
 	my @TmpArr = ();
 
-	if( !defined $function || $function != 3 ) { Lab::Exception::CorruptParameter->throw( error => 'Undefined or unimplemented function code' . Lab::Exception::Base::Appendix(), ); }
-	if( !defined $mem_address || $mem_address < 0 || $mem_address > 0xFFFF ) { Lab::Exception::CorruptParameter->throw( error => 'Invalid memory address' . Lab::Exception::Base::Appendix(), ); }
-	if( $mem_count < 1 ) { Lab::Exception::CorruptParameter->throw( error => 'Invalid count of registers to be read' . Lab::Exception::Base::Appendix(), ); }
+	if( !defined $function || $function != 3 ) { Lab::Exception::CorruptParameter->throw( error => 'Undefined or unimplemented function code', ); }
+	if( !defined $mem_address || $mem_address < 0 || $mem_address > 0xFFFF ) { Lab::Exception::CorruptParameter->throw( error => 'Invalid memory address', ); }
+	if( $mem_count < 1 ) { Lab::Exception::CorruptParameter->throw( error => 'Invalid count of registers to be read', ); }
 
 	@MessageArr = $self->_MB_CRC( pack('C',$connection_handle->{slave_address}),pack('C',$function), pack('n',$mem_address), pack('n',$mem_count) );
 	$Message = join('',$self->_chrlist(@MessageArr));
@@ -191,9 +191,9 @@ sub connection_write { # @_ = ( $connection_handle, $args = { function, mem_addr
 	my $ErrCount=3;
 
 
-	if( !defined $function || $function != 6 ) { Lab::Exception::CorruptParameter->throw( error => 'Undefined or unimplemented function code' . Lab::Exception::Base::Appendix(), ); }
-	if( !defined $mem_address || $mem_address < 0 || $mem_address > 0xFFFF ) { Lab::Exception::CorruptParameter->throw( error => 'Invalid memory address' . Lab::Exception::Base::Appendix(), ); }
-	if(unpack('n!',$SendValue) != $mem_value) { Lab::Exception::CorruptParameter->throw( error => "Invalid Memory Value $mem_value" . Lab::Exception::Base::Appendix(), ); }
+	if( !defined $function || $function != 6 ) { Lab::Exception::CorruptParameter->throw( error => 'Undefined or unimplemented function code', ); }
+	if( !defined $mem_address || $mem_address < 0 || $mem_address > 0xFFFF ) { Lab::Exception::CorruptParameter->throw( error => 'Invalid memory address', ); }
+	if(unpack('n!',$SendValue) != $mem_value) { Lab::Exception::CorruptParameter->throw( error => "Invalid Memory Value $mem_value", ); }
 
 	@MessageArr = $self->_MB_CRC( pack('C',$connection_handle->{slave_address}), pack('C',$function), pack('n',$mem_address), $SendValue);
 	$Message = join('',$self->_chrlist(@MessageArr));
@@ -349,6 +349,10 @@ RS232<->RS485 converter for now). It's main use is to calculate the checksums ne
 MODBUS RTU.
 
 Refer to your device for the correct port configuration.
+
+As of yet, this driver does NOT fully implement all MODBUS RTU functions. Only the function
+codes 3 and 6 are provided.
+
 
 =head1 CONSTRUCTOR
 
