@@ -12,7 +12,7 @@
 use strict;
 
 package Lab::Bus::MODBUS_RS232;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use Lab::Bus::RS232;
 use Carp;
@@ -326,8 +326,7 @@ sub _MB_CRC { # @Message as character array, e.g. ( chr(1), pack('C',$address), 
 
 =head1 NAME
 
-Lab::Bus::MODBUS_RS232 - Perl extension for interfacing with instruments via RS232/RS485
-using the MODBUS RTU protocol
+Lab::Bus::MODBUS_RS232 - RS232/RS485 MODBUS RTU protocol bus
 
 =head1 SYNOPSIS
 

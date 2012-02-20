@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
-
 package Lab::Instrument;
-our $VERSION = '2.94';
-
 use strict;
+use warnings;
+
+our $VERSION = '2.95';
 
 use Lab::Exception;
 use Lab::Connection;
@@ -14,7 +14,6 @@ use Clone qw(clone);
 use Time::HiRes qw (usleep sleep);
 use POSIX; # added for int() function
 
-# setup this variable to add inherited functions later
 our @ISA = ();
 
 our $AUTOLOAD;
@@ -36,8 +35,8 @@ our %fields = (
 
 	# default device settings/user supplied settings. see accessor method.
 	device_settings => {
-		wait_status => 10, # usec
-		wait_query => 100, # usec
+		wait_status => 10e-6, # sec
+		wait_query => 10e-6, # sec
 		query_length => 300, # bytes
 		query_long_length => 10240, # bytes
 	},
@@ -163,12 +162,12 @@ sub _cache_init {
 			Lab::Exception::CorruptParameter->throw( "No field with name $ckey in device_cache!\n" ) if !exists $self->device_cache()->{$ckey};
 			if( !defined $self->device_cache()->{$ckey}  ) {
 				$subname = 'get_' . $ckey;
-				Lab::Exception::CorruptParameter->throw("No get method defined for device_cache field $ckey!\n") if !$self->can($subname);
-				$self->device_cache()->{$ckey} = $self->$subname();
+				Lab::Exception::CorruptParameter->throw("No get method defined for device_cache field $ckey! \n") if ! $self->can($subname);
+				$self->device_cache()->{$ckey} = $self->$subname( from_device => 1 );
 			}
 			else {
 				$subname = 'set_' . $ckey;
-				Lab::Exception::CorruptParameter->throw("No set method defined for device_cache field $ckey!\n") if !$self->can($subname);
+				Lab::Exception::CorruptParameter->throw("No set method defined for device_cache field $ckey!\n") if ! $self->can($subname);
 				$self->$subname($self->device_cache()->{$ckey});
 			}
 		}
@@ -200,6 +199,7 @@ sub device_sync{
 				my $count = 0;
 				foreach my $key (keys %{$self->{'device_cache'}} ){
 					$self->${\('set_'.$key)}($self->{'device_cache'}->{$key});
+					$count += 1;
 				}				
 				return $count;
 			}
@@ -207,11 +207,13 @@ sub device_sync{
 		else{
 			if($_[0]){
 				$self->{'device_cache'}->{$_[0]} = $self->${\('get_'.$_[0])}( device_cache => 1 );
+				return 1;
 			}
 			else{
 				my $count = 0;
 				foreach my $key (keys %{$self->{'device_cache'}} ){
 					$self->{'device_cache'}->{$key} = $self->${\('get_'.$key)}( device_cache => 1 );
+					$count += 1;
 				}				
 				return $count;
 			}
@@ -254,6 +256,7 @@ sub configure {
 		$self->device_cache($config);
 	}
 }
+
 
 
 
@@ -318,8 +321,7 @@ sub _setconnection { # $self->setconnection() create new or use existing connect
 		if ($@) {
 			Lab::Exception::Error->throw(
 				error => 	"Sorry, I was not able to load the connection ${full_connection}.\n" .
-							"The error received from the connections was\n===\n$@\n===\n" .
-							Lab::Exception::Base::Appendix()
+							"The error received from the connections was\n===\n$@\n===\n"
 			);
 		}
 
@@ -350,6 +352,53 @@ sub _checkconfig {
 
 
 #
+# To be overwritten...
+# Returned $errcode has to be 0 for "no error"
+#
+sub get_error {
+	my $self=shift;
+	
+	# overwrite with device specific error retrieval...
+	
+	return (0, undef); # ( $errcode, $message )
+}
+
+#
+# Optionally implement this to return a hash with device specific named status bits for this device, e.g. from the status byte/serial poll for GPIB
+# return { ERROR => 1, READY => 1, DATA => 0, ... }
+#
+sub get_status {
+	my $self=shift;
+	Lab::Exception::Unimplemented->throw( "get_status() not implemented for " . ref($self) . ".\n" );
+	return undef;
+}
+
+sub check_errors {
+	my $self=shift;
+	my $command=shift;
+	my @errors=();
+	
+	if($self->get_status('ERROR')) {
+	
+		my ( $code, $message )  = $self->get_error();	
+		while( $code != 0 ) {
+			push @errors, [$code, $message];
+			warn "\nReceived device error with code $code\nMessage: $message\n";
+			( $code, $message )  = $self->get_error();
+		}
+
+		if(@errors) {
+			Lab::Exception::DeviceError->throw (
+				error => 'An Error occured in the device.',
+				device_class => ref $self,
+				command => $command,
+				error_list => \@errors,
+			)
+		}
+	}
+}
+
+#
 # Generic utility methods for string based connections (most common, SCPI etc.).
 # For connections not based on command strings these should probably be overwritten/disabled!
 #
@@ -360,13 +409,14 @@ sub _checkconfig {
 
 sub write {
 	my $self=shift;
-	my $command=shift;
+	my $command= scalar(@_)%2 == 0 && ref $_[1] ne 'HASH' ? undef : shift;  # even sized parameter list and second parm no hashref? => Assume parameter hash
 	my $args = scalar(@_)%2==0 ? {@_} : ( ref($_[0]) eq 'HASH' ? $_[0] : undef );
 	Lab::Exception::CorruptParameter->throw( "Illegal parameter hash given!\n" ) if !defined($args);
 
-	$args->{'command'} = $command;
+	$args->{'command'} = $command if defined $command;
 	
-	return $self->connection()->Write($args);
+	$self->connection()->Write($args);
+	$self->check_errors($args->{'command'}) if $args->{error_check};
 }
 
 
@@ -375,19 +425,28 @@ sub read {
 	my $args = scalar(@_)%2==0 ? {@_} : ( ref($_[0]) eq 'HASH' ? $_[0] : undef );
 	Lab::Exception::CorruptParameter->throw( "Illegal parameter hash given!\n" ) if !defined($args);
 
-	return $self->connection()->Read($args);
+	my $result = $self->connection()->Read($args);
+	$self->check_errors('Just a plain and simple read.') if $args->{error_check};
+	return $result;
 }
 
 
+# query( $command, { channel => 1 })
+# query( $command, channel => 1 )
+# query({ command => $cmd, channel => 1 })
+# query( command => $cmd, channel => 1 )
+
+# $time, $true_scalar
+
 sub query {
 	my $self=shift;
-	my $command=shift;
-	my $args = scalar(@_)%2==0 ? {@_} : ( ref($_[0]) eq 'HASH' ? $_[0] : undef );
-	Lab::Exception::CorruptParameter->throw( "Illegal parameter hash given!\n" ) if !defined($args);
+	my ($command, $args) = $self->parse_optional(@_);
 
-	$args->{'command'} = $command;
+	$args->{'command'} = $command if defined $command;
 
-	return $self->connection()->Query($args);
+	my $result = $self->connection()->Query($args);
+	$self->check_errors($args->{'command'}) if $args->{error_check};
+	return $result;
 }
 
 
@@ -400,6 +459,20 @@ sub query {
 #
 # infrastructure stuff below
 #
+
+#
+# tool function to safely handle an optional scalar parameter in presence with a parameter hash/list
+# only one optional scalar parameter can be handled, and its value must not be a hashref!
+#
+sub parse_optional {
+	my $self = shift;
+
+	my $optional= scalar(@_)%2 == 0 && ref $_[1] ne 'HASH' ? undef : shift;  # even sized parameter list and second parm no hashref? => Assume parameter hash
+	my $args = scalar(@_)%2==0 ? {@_} : ( ref($_[0]) eq 'HASH' ? $_[0] : undef );
+	Lab::Exception::CorruptParameter->throw( "Illegal parameter hash given!\n" ) if !defined($args);
+	
+	return $optional, $args;
+}
 
 
 
@@ -602,6 +675,14 @@ sub _device_init {
 } 
 
 
+#
+# This tool just returns the index of the element in the provided list
+#
+
+sub function_list_index{
+ 1 while $_[0] ne pop; 
+ $#_;
+}
 
 
 
@@ -656,7 +737,7 @@ sub _device_init {
 
 =head1 NAME
 
-Lab::Instrument - General instrument package
+Lab::Instrument - instrument base class
 
 =head1 SYNOPSIS
 
@@ -712,6 +793,9 @@ Arguments: just the configuration hash (or even-sized list) passed along from a 
 Sends the command C<$command> to the instrument. An option hash can be supplied as second or also as only argument.
 Generally, all options are passed to the connection/bus, so additional named options may be supported based on the connection and bus
 and can be passed as a hashref or hash. See L<Lab::Connection>.
+ 
+Optional named parameters for hash:
+error_check => 1/0	Invoke $instrument->check_errors after write. Default off.
 
 =head2 read
 
@@ -762,6 +846,55 @@ $instrument->{'CommandRules'} = {
     		  'betweenCmdAndData' => ' ',
     		  'postData'          => '' # empty entries can be skipped
     		};
+
+=head2 get_error
+
+	($errcode, $errmsg) = $instrument->get_error();
+
+Method stub to be overwritten. Implementations read one error (and message, if available) from
+the device.
+
+=head2 get_status
+
+	$status = $instrument->get_status();
+	if( $instrument->get_status('ERROR') ) {...}
+	
+Method stub to be overwritten.
+This returns the status reported by the device (e.g. the status byte retrieved via serial poll from
+GPIB devices). When implementing, use only information which can be retrieved very fast from the device,
+as this may be used often. 
+
+Without parameters, has to return a hashref with named status bits, e.g.
+
+$status => {
+	ERROR => 1,
+	DATA => 0,
+	READY => 1
+}
+
+If present, the first argument is interpreted as a key and the corresponding value of the hash above is
+returned directly.
+
+The 'ERROR'-key has to be implemented in every device driver!
+
+
+=head2 check_errors
+
+	$instrument->check_errors($last_command);
+	
+	# try
+	eval { $instrument->check_errors($last_command) };
+	# catch
+	if ( my $e = Exception::Class->caught('Lab::Exception::DeviceError')) {
+		warn "Errors from device!";
+		@errors = $e->error_list();
+		@devtype = $e->device_class();
+		$command = $e->command();		
+	}
+
+Uses get_error() to check the device for occured errors. Reads all present errors and throws a
+Lab::Exception::DeviceError. The list of errors, the device class and the last issued command(s)
+(if the script provided them) are enclosed.
 
 =head1 CAVEATS/BUGS
 

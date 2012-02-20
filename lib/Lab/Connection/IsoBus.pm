@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 package Lab::Connection::IsoBus;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 use Lab::Bus::VISA;
@@ -15,7 +15,7 @@ our %fields = (
 	bus_class => 'Lab::Bus::IsoBus',
 	isobus_address => undef,
 	wait_status=>0, # usec;
-	wait_query=>10, # usec;
+	wait_query=>10e-6, # sec;
 	read_length=>1000, # bytes
 );
 

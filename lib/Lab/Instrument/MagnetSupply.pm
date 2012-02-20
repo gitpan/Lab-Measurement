@@ -1,6 +1,6 @@
 
 package Lab::Instrument::MagnetSupply;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 
@@ -294,7 +294,7 @@ sub _get_fieldconstant {
 
 =head1 NAME
 
-Lab::Instrument::MagnetSupply - Base class for magnet power supply instruments
+Lab::Instrument::MagnetSupply - base class for magnet power supply instruments
 
   (c) 2010 David Borowsky, Andreas K. Hüttel
       2011 Andreas K. Hüttel

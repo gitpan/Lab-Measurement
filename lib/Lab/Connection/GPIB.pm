@@ -13,7 +13,7 @@
 # TODO: Access to GPIB attributes, device clear, ...
 
 package Lab::Connection::GPIB;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use Lab::Connection;
 use strict;
@@ -27,8 +27,8 @@ our %fields = (
 	gpib_address	=> undef,
 	gpib_saddress => undef, # secondary address, if needed
 	brutal => 0,	# brutal as default?
-	wait_status=>0, # usec;
-	wait_query=>10, # usec;
+	wait_status=>0, # sec;
+	wait_query=>10e-6, # sec;
 	read_length=>1000, # bytes
 );
 
@@ -86,6 +86,23 @@ sub SetTermChar { # the character as string
   my $termchar=shift;
   my $result=$self->bus()->connection_settermchar($self->connection_handle(), $termchar);
   return $result;
+}
+
+#
+# perform a serial poll on the bus and return the status byte
+# Returns an array with index 0=>LSB, 8=>MSB of the status byte
+#
+sub serial_poll {
+	use bytes;
+	my $self=shift;
+	my $statbyte = $self->bus()->serial_poll($self->connection_handle());
+	my @stat = ();
+	
+	for (my $i=0; $i<8; $i++) {
+		$stat[$i] = 0x01 & ($statbyte >> $i);
+	}
+	return @stat;
+	#return (split(//, unpack('b*', pack('N',$self->bus()->serial_poll($self->connection_handle())))))[-8..-1];
 }
 
 

@@ -5,7 +5,7 @@
 # This one digests VISA resource names
 #
 package Lab::Connection::VISA;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 use Lab::Bus::VISA;
@@ -18,8 +18,8 @@ our @ISA = ("Lab::Connection");
 our %fields = (
 	bus_class => 'Lab::Bus::VISA',
 	resource_name => undef,
-	wait_status=>0, # usec;
-	wait_query=>10, # usec;
+	wait_status=>0, # sec;
+	wait_query=>10e-6, # sec;
 	read_length=>1000, # bytes
 );
 

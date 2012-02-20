@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 package Lab::Bus::RS232;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 use warnings;
@@ -43,7 +43,7 @@ our %fields = (
 	timeout => 500,
 	read_length => 'all',
 	brutal => 0,
-	wait_query => 10,
+	wait_query => 10e-6, #sec
 );
 
 sub new {
@@ -276,7 +276,7 @@ sub _search_twin {
 
 =head1 NAME
 
-Lab::Bus::RS232 - Bus for RS232 or Virtual Comm ports
+Lab::Bus::RS232 - RS232 or Virtual Comm port bus
 
 =head1 SYNOPSIS
 

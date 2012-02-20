@@ -1,37 +1,7 @@
 #!/usr/bin/perl -w
 
-package Lab::Bus::DEBUG::HumanInstrument;
-
-use strict;
-use base "Wx::App";
-use Wx qw(wxTE_MULTILINE wxDefaultPosition);
-
-sub OnInit {
-
-	my $frame = Wx::Frame->new( undef,           # parent window
-		-1,              # ID -1 means any
-		'wxPerl rules',  # title
-		[-1, -1],         # default position
-		[300, 300],       # size
-	);
-
-	my $textpane = new Wx::TextCtrl($frame, -1, "blablub", wxDefaultPosition, [300,300], wxTE_MULTILINE);
- 	#my $textPane = Wx::StaticText->new($frame,   # Parent window
-#                                     -1,       # no window id
-#                                     'Welcome to the world of WxPerl!',
-#                                     [20, 20], # Position
-#                                    );
-
-
-	$frame->Show( 1 );
-}
-
-
-
-
-
 package Lab::Bus::DEBUG;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 use threads;
@@ -53,8 +23,8 @@ our $thr = undef;
 our %fields = (
 	brutal => 0,	# brutal as default?
 	type => 'DEBUG',
-	wait_status=>10, # usec;
-	wait_query=>10, # usec;
+	wait_status=>10e-6, # sec;
+	wait_query=>10e-6, # sec;
 	query_length=>300, # bytes
 	query_long_length=>10240, #bytes
 	read_length => 1000, # bytesx
@@ -263,7 +233,7 @@ sub _search_twin {
 
 =head1 NAME
 
-Lab::Bus::DEBUG - debug bus
+Lab::Bus::DEBUG - interactive debug bus
 
 
 =head1 DESCRIPTION

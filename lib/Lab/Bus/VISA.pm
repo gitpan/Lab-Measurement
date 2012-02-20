@@ -2,7 +2,7 @@
 
 
 package Lab::Bus::VISA;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 use Lab::VISA;
@@ -19,8 +19,8 @@ our %fields = (
 	default_rm => undef,
 	type => 'VISA',
 	brutal => 0,	# brutal as default?
-	wait_status=>10, # usec;
-	wait_query=>10, # usec;
+	wait_status=>10e-6, # sec;
+	wait_query=>10e-6, # sec;
 	query_length=>300, # bytes
 	query_long_length=>10240, #bytes
 	read_length => 1000, # bytes
@@ -160,7 +160,7 @@ sub connection_write { # @_ = ( $connection_handle, $args = { command, wait_stat
             length($command)
         );
 
-        usleep($wait_status);
+        sleep($wait_status);
 
 		if ( $status != $Lab::VISA::VI_SUCCESS ) {
 			Lab::Exception::VISAError->throw(
@@ -204,6 +204,31 @@ sub connection_query { # @_ = ( $connection_handle, $args = { command, read_leng
 
 
 
+sub serial_poll {
+	my $self = shift;
+	my $connection_handle = shift;
+	my $sbyte = undef;
+	
+	my $ibstatus = Lab::VISA::viReadSTB( $connection_handle, $sbyte );
+	
+	#
+	# TODO: VISA status evaluation
+	#
+	# my $ib_bits=$self->ParseIbstatus($ibstatus);
+	#
+	# if($ib_bits->{'ERR'}==1) {
+	# 	Lab::Exception::GPIBError->throw(
+	#		error => sprintf("ibrsp (serial poll) failed with status %x\n", $ibstatus) . Dumper($ib_bits),
+	#		ibsta => $ibstatus,
+	#		ibsta_hash => $ib_bits,
+	#	);
+	# }
+	
+	return $sbyte;
+}
+
+
+
 #
 # calls ibclear() on the instrument - how to do on VISA?
 #
@@ -240,7 +265,7 @@ sub _search_twin {
 
 =head1 NAME
 
-Lab::Bus::VISA - VISA bus
+Lab::Bus::VISA - National Instruments VISA bus
 
 =head1 SYNOPSIS
 

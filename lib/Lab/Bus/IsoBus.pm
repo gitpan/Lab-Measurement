@@ -2,7 +2,7 @@
 
 
 package Lab::Bus::IsoBus;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 use Lab::Connection;
@@ -19,8 +19,8 @@ our %fields = (
 	type => 'IsoBus',
 	base_connection => undef,
 	brutal => 0,	# brutal as default?
-	wait_status=>10, # usec;
-	wait_query=>10, # usec;
+	wait_status=>10e-6, # sec;
+	wait_query=>10e-6, # sec;
 	query_length=>300, # bytes
 	query_long_length=>10240, #bytes
 	read_length => 1000, # bytes
@@ -197,7 +197,7 @@ sub _search_twin {
 
 =head1 NAME
 
-Lab::Bus::IsoBus - Oxford Instruments IsoBus
+Lab::Bus::IsoBus - Oxford Instruments IsoBus bus
 
 =head1 SYNOPSIS
 

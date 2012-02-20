@@ -7,7 +7,7 @@
 # TODO: Access to GPIB attributes, device clear, ...
 
 package Lab::Connection::LinuxGPIB;
-our $VERSION = '2.94';
+our $VERSION = '2.95';
 
 use strict;
 use Scalar::Util qw(weaken);
@@ -23,7 +23,7 @@ our @ISA = ("Lab::Connection::GPIB");
 our %fields = (
 	bus_class => 'Lab::Bus::LinuxGPIB',
 	wait_status=>0, # usec;
-	wait_query=>10, # usec;
+	wait_query=>10e-6, # sec;
 	read_length=>1000, # bytes
 	timeout=>1, # seconds
 );
