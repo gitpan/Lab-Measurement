@@ -1,6 +1,6 @@
 
 package Lab::Measurement;
-our $VERSION = '2.95';
+our $VERSION = '2.96';
 
 use strict;
 use warnings;
@@ -116,7 +116,12 @@ sub DESTROY {
 
 sub log_line {
     my $self=shift;
+    
+    #decide wether the given parameter are two array refs or two scalars.
+   
     $self->{writer}->log_line(@_);
+    
+    
     
     if ($self->{termctl}) {
       if ( defined ( my $key = ReadKey( -1 ) ) ) {
@@ -132,6 +137,8 @@ sub log_line {
         $self->{live_plotter}->update_live_plot();
     }
 }
+
+
 
 sub start_block {
     my ($self,$label)=@_;

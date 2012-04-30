@@ -3,7 +3,7 @@ package Lab::Instrument::Yokogawa7651;
 use warnings;
 use strict;
 
-our $VERSION = '2.95';
+our $VERSION = '2.96';
 use 5.010;
 
 
@@ -36,11 +36,13 @@ our %fields = (
 	},
 	
 	device_cache => {
-		function			=> "Voltage", 
+		function			=> undef, 
 		range			=> undef,
 		level			=> undef,
 		output					=> undef,
 	},
+	
+	device_cache_order => ['function','range'],
 );
 
 sub new {
@@ -120,24 +122,32 @@ sub set_current {
     $self->set_level($current, @_);
 }
 
+sub set_setpoint {
+    my $self=shift;
+    my $value=shift;
+    my $cmd=sprintf("S%+.4e",$value);
+    $self->write($cmd,error_check=>1);
+}
+
 sub _set_level {
     my $self=shift;
     my $value=shift;
+    
+    my $range=$self->get_range();
+	
+    
+    if ( $value > $range || $value < -$range ){
+        Lab::Exception::CorruptParameter->throw("The desired source level $value is not within the source range $range \n");
+    }
         
     my $cmd=sprintf("S%ee",$value);
     
-    $self->write( $cmd );
+    $self->write( $cmd, error_check => 1 );
     
     return $self->{'device_cache'}->{'level'} = $value;
     
 }
 
-sub set_setpoint {
-    my $self=shift;
-    my $value=shift;
-    my $cmd=sprintf("S%+.4e",$value);
-    $self->write($cmd);
-}
 
 sub set_time {
     my $self=shift;
@@ -170,10 +180,12 @@ sub execute_program {
     $self->write( $cmd );
 }
 
-sub _sweep_to_level {
-    my $self=shift;
+
+sub configure_sweep{
+	my $self=shift;
     my $target = shift;
     my $time = shift;
+	
     
     
     my $output_now=$self->get_level();
@@ -181,40 +193,82 @@ sub _sweep_to_level {
     my $range=$self->get_range();
     
     if ( $target > $range || $target < -$range ){
-        Lab::Exception->throw("The desired source level $target is not within the source range $range \n");
+        Lab::Exception::CorruptParameter->throw("The desired source level $target is not within the source range $range \n");
     }
     
+	if ( $time < 0.1 ) {
+		$time=0.1;
+		print " Yokogawa7651.pm warning: correcting too short sweep time\n";
+	}
+	
+    # Set interval time
     my $cmd=sprintf("PI%.1fe",$time);
-    $self->write( $cmd );
-    $cmd=sprintf("SW%.1fe",$time);
-    $self->write( $cmd );
+    $self->write( $cmd, error_check => 1 );
     
+    # Set sweep time
+    $cmd=sprintf("SW%.1fe",$time);
+    $self->write( $cmd, error_check => 1 );
+    
+    # Select single mode
     $self->write("M1");
     
-    # Set Status byte mask to "end program"
-    $self->write("MS16");
     
     #Start Programming-----
-    $self->execute_program(0);
+
     $self->start_program();
     
-    
+    # We call internal sub to set level directly
     $self->set_setpoint($target);
-    $self->end_program();
-
-    $self->execute_program(2);
     
-    while (($self->query("OC") =~ /^STS1=(\d+)/g )&& $1 & 2 ){
+    $self->end_program();
+	
+}
+
+
+sub wait_done{
+	my $self = shift;
+	
+	# wait until currently running program is finished.
+	
+	while (($self->query("OC") =~ /^STS1=(\d+)/g )&& $1 & 2 ){
     	#print $self->query("OC");
     	#print $self->connection()->serial_poll()."\n";
     	sleep 1;
     }
+	
+	
+}
+
+sub _sweep_to_level {
+    my $self = shift;
+    my $target = shift;
+    my $time = shift;
+    	
+	# print "Yokogawa7651.pm: configuring sweep $target $time\n";
+    $self->configure_sweep($target,$time);
+
+	# print "Yokogawa7651.pm: executing program\n";
+    $self->execute_program(2);
     
-    if( ! $self->get_level( device_cache => 1) == $target){
+	# print "Yokogawa7651.pm: waiting until done\n";
+    $self->wait_done();
+    
+	# print "Yokogawa7651.pm: reading out source level\n";
+	my $current = $self->get_level( from_device => 1);
+	# print "Yokogawa7651.pm: source level is $current\n";
+	
+	my $eql=$self->get_gp_equal_level();
+
+	# my $difference=$current-$target;
+	# print "Yokogawa7651.pm: c $current t $target d $difference e $eql\n";
+	
+	if( abs($current-$target) > $eql ){
+		print "Yokogawa7651.pm: error current neq target\n";
     	Lab::Exception::CorruptParameter->throw(
-    	"Sweep failed.")
+    	"Sweep failed: $target not equal to $current. \n")
     }
     
+	# print "Yokogawa7651.pm: reaching return from _sweep_to_level\n";
     return $self->device_cache()->{'level'} = $target;
 }
 
@@ -230,8 +284,8 @@ sub get_function{
     
     my $cmd="OD";
     my $result=$self->query($cmd);
-    if($result=~/^...(V|A)/){
-    	return ( $result eq "V" ) ? "Voltage" : "Current";
+    if($result=~/^...([VA])/){
+    	return ( $1 eq "V" ) ? "Voltage" : "Current";
     }
     else{
     	Lab::Exception::CorruptParameter->throw( "Output of command OD is not valid. \n" );
@@ -304,15 +358,17 @@ sub set_range {
     my $self=shift;
     my $my_range = shift;
     my $range = 0;
-    
+	
     my $function = $self->get_function();
+	
+	
     if( $function =~ /voltage/i ){
     	given($my_range){
-    		when( 0.01 ){ $range = 2 }
-    		when( 0.1 ){ $range = 3 }
-    		when( 1 ){ $range = 4 }
-    		when( 10 ){ $range = 5 }
-    		when( 30 ){ $range = 6 }
+    		when( $_ == 0.01 ){ $range = 2 }
+    		when( $_ == 0.1 ){ $range = 3 }
+    		when( $_ == 1 ){ $range = 4 }
+    		when( $_ == 10 ){ $range = 5 }
+    		when( $_ == 30 ){ $range = 6 }
     		default { 
     			Lab::Exception::CorruptParameter->throw( "$range is not a valid voltage range. Read the documentation for a list of allowed ranges in mode $function. \n" )
     		}
@@ -443,8 +499,8 @@ sub get_output {
      	return $self->{'device_cache'}->{'output'};
     }    
     
-    my %res=$self->get_status();
-    return $res{output};
+    my $res = $self->get_status();
+    return $res->{'output'};
 }
 
 sub initialize {
@@ -468,19 +524,22 @@ sub set_current_limit {
 
 sub get_status {
     my $self=shift;
+    my $request = shift;
+    
     my $status=$self->query('OC');
     
     $status=~/STS1=(\d*)/;
     $status=$1;
     my @flags=qw/
         CAL_switch  memory_card calibration_mode    output
-        unstable    error   execution   setting/;
-    my %result;
+        unstable    ERROR   execution   setting/;
+    my $result = {};
     for (0..7) {
-        $result{$flags[$_]}=$status & 128;
+        $result->{$flags[$_]}=$status & 128;
         $status<<=1;
     }
-    return %result;
+    return $result->{$request} if defined $request;
+    return $result;
 }
 
 #
@@ -559,6 +618,10 @@ you might also want to have gate protect from the start (the default values are 
 
 		max_sweep_time=>3600,
 		min_sweep_time=>0.1,
+
+If you want to use the sweep function without using gate protect, you should specify
+
+		stepsize=>0.01
 	
 Additinally there is support to set parameters for the device "on init":		
 If those values are not specified, defaults are supplied by the driver.
