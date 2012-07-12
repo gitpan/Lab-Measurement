@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 package Lab::Instrument::HP3458A;
-our $VERSION = '2.96';
+our $VERSION = '3.00';
 
 use strict;
 use Lab::Instrument;
@@ -46,7 +46,9 @@ sub _device_init {
 	#$self->connection()->EnableTermChar(1);
 	#print "hallo\n";
 	$self->write("END 2"); # or ERRSTR? and other queries will time out, unless using a line/message end character
-	$self->write('TARM HOLD');	# disable continuous readings
+	$self->write('TARM AUTO'); # keep measuring
+	$self->write('TRIG AUTO'); # keep measuring
+	$self->write('NRDGS 1,AUTO'); # keep measuring
 }
 
 
@@ -429,7 +431,8 @@ sub get_id {
 sub get_value {
     # Triggers one Measurement and Reads it
     my $self=shift;
-    my $val=$self->query("TRIG SGL", @_);
+    #my $val=$self->query("TRIG SGL", @_);
+    my $val=$self->read(@_);
     chomp $val;
     return $val;
 }
@@ -469,8 +472,8 @@ The Lab::Instrument::HP3458A class implements an interface to the Agilent / HP
 =head2 pl_freq
 Parameter: pl_freq
 
-	$hp->pl_freq($new_freq);
-	$npl_freq = $hp->pl_freq();
+    $hp->pl_freq($new_freq);
+    $npl_freq = $hp->pl_freq();
 	
 Get/set the power line frequency at your location (50 Hz for most countries, which is the default). This
 is the basis of the integration time setting (which is internally specified as a count of power
@@ -485,15 +488,15 @@ triggered_read.
 
 _head2 triggered_read
 
-	@values = $hp->triggered_read();
-	$value = $hp->triggered_read();
+    @values = $hp->triggered_read();
+    $value = $hp->triggered_read();
 	
 Trigger and read value(s) using the current device setup. This expects and digests a list of values in ASCII format,
 as set up by configure_voltage_dc().
 
 =head2 triggered_read_raw
 
-	$result = $hp->triggered_read_raw( read_until_length => $length );
+    $result = $hp->triggered_read_raw( read_until_length => $length );
 	
 Trigger and read using the current device setup. This won't do any parsing and just return the answer from the device.
 If $read_until_length (integer) is specified, it will try to continuously read until it has gathered this amount of bytes.
@@ -501,7 +504,7 @@ If $read_until_length (integer) is specified, it will try to continuously read u
 
 =head2 configure_voltage_dc
 
-	$hp->configure_voltage_dc($range, $integration_time);
+    $hp->configure_voltage_dc($range, $integration_time);
 	
 Configure range and integration time for the following DCV measurements.
 
@@ -510,7 +513,8 @@ $integration_time is given in seconds or one of "DEFAULT", "MIN" or "MAX".
 
 =head2 configure_voltage_dc_trigger
 
-	$hp->configure_voltage_dc_trigger($range, $integration_time, $count, $delay);
+    $hp->configure_voltage_dc_trigger($range, $integration_time, 
+      $count, $delay);
 
 Configures range, integration time, sample count and delay (between samples) for triggered
 readings.
@@ -521,7 +525,8 @@ $delay is the delay between the samples in seconds.
 
 =head2 configure_voltage_dc_trigger_highspeed
 
-	$hp->configure_voltage_dc_trigger_highspeed($range, $integration_time, $count, $delay);
+    $hp->configure_voltage_dc_trigger_highspeed($range, 
+      $integration_time, $count, $delay);
 
 Same as configure_voltage_dc_trigger, but configures the device for maximum measurement speed.
 Values are transferred in SINT format and can be fetched and decoded using triggered_read_raw()
@@ -534,14 +539,13 @@ $count is the sample count per trigger (integer).
 $delay is the delay between the samples in seconds.
 
 =head2 set_display_state
-Parameter: display_state
 
-    $hp->set_display_state(1/'on'/0/'off');
+    $hp->set_display_state($state);
 
-Turn the front-panel display on/off (1/0)
+Turn the front-panel display on/off. $state can be 
+each of '1', '0', 'on', 'off'.
 
 =head2 set_display_text
-Parameter: display_text
 
     $hp->set_display_text($text);
 
@@ -570,29 +574,28 @@ queue. Errors are retrieved in first-in-first out (FIFO) order.
 
 =head2 check_errors
 
-	$instrument->check_errors($last_command);
-	
-	# try
-	eval { $instrument->check_errors($last_command) };
-	# catch
-	if ( my $e = Exception::Class->caught('Lab::Exception::DeviceError')) {
-		warn "Errors from device!";
-		@errors = $e->error_list();
-		@devtype = $e->device_class();
-		$command = $e->command();		
-	}
-	else {
-		$e = Exception::Class->caught();
-		ref $e ? $e->rethrow; die $e;
-	}
+    $instrument->check_errors($last_command);
+    
+    # try
+    eval { $instrument->check_errors($last_command) };
+    # catch
+    if ( my $e = Exception::Class->caught('Lab::Exception::DeviceError')) {
+        warn "Errors from device!";
+        @errors = $e->error_list();
+        @devtype = $e->device_class();
+        $command = $e->command();		
+    } else {
+        $e = Exception::Class->caught();
+        ref $e ? $e->rethrow; die $e;
+    }
 
 Uses get_error() to check the device for occured errors. Reads all present error and throws a
 Lab::Exception::DeviceError. The list of errors, the device class and the last issued command(s)
 (if the script provided them) are enclosed.
 
-=head2 set_nlpc
+=head2 set_nplc
 
-    $hp->set_nlcp($number);
+    $hp->set_nplc($number);
 
 Sets the integration time in units of power line cycles.
 
@@ -606,12 +609,13 @@ Reset the multimeter to its power-on configuration. Same as preset('NORM').
 
     $hp->preset($config);
 
-$config can be
+$config can be any of the following settings:
+
   'FAST'  / 0
   'NORM'  / 1
   'DIG'   / 2 
 
-Choose one of several configuration presets (0: fast, 1: norm, 2: DIG).
+Choose one of several configuration presets.
 
 =head2 selftest
 
@@ -625,16 +629,16 @@ Starts the internal self-test routine.
 
 Starts the internal autocalibration. Warning... this procedure takes 11 minutes with the 'ALL' mode!
 
-$mode can be
+$mode can be each of
+
   'ALL'  / 0
   'DCV'  / 1
   'AC'   / 2
   'OHMS' / 4
-each meaning the obvious.
 
 =head2 decode_SINT
 
-	@values = $hp->decode_SINT( $SINT_data, <$iscale> );
+    @values = $hp->decode_SINT( $SINT_data, <$iscale> );
 
 Takes a data blob with SINT values and decodes them into a numeric list. The used $iscale parameter is
 read from the device by default if omitted. Make sure the device still has the same settings as used to
@@ -658,7 +662,7 @@ probably many
 =head1 AUTHOR/COPYRIGHT
 
   Copyright 2009-2011 David Kalok, Andreas K. Hüttel
-            2011 Andreas K. Hüttel
+            2011-2012 Andreas K. Hüttel, Florian Olbrich
 
 This library is free software; you can redistribute it and/or modify it 
 under the same terms as Perl itself.

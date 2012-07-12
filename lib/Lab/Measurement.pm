@@ -1,6 +1,6 @@
 
 package Lab::Measurement;
-our $VERSION = '2.96';
+our $VERSION = '3.00';
 
 use strict;
 use warnings;
@@ -138,7 +138,13 @@ sub log_line {
     }
 }
 
-
+sub force_update_live_plot
+{
+    my $self=shift;
+    if ($self->{live_plotter}) {
+        $self->{live_plotter}->force_update();
+    }
+}
 
 sub start_block {
     my ($self,$label)=@_;
@@ -376,7 +382,7 @@ magic log. deprecated.
 
 =head1 AUTHOR/COPYRIGHT
 
-Copyright 2004-2006 Daniel Schröer (L<http://www.danielschroeer.de>)
+ Copyright 2004-2006 Daniel Schröer (L<http://www.danielschroeer.de>)
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

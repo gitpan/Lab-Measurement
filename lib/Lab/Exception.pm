@@ -31,7 +31,7 @@ sub full_message {
 }
 
 package Lab::Exception;
-our $VERSION = '2.96';
+our $VERSION = '3.00';
 
 
 #
@@ -188,6 +188,10 @@ use Exception::Class (
 =head1 NAME
 
 Lab::Exception - exception handling classes
+
+=head1 METHODS
+
+This section is still missing.
 
 =head1 AUTHOR/COPYRIGHT
 
