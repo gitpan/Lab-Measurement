@@ -1,12 +1,12 @@
 #!/usr/bin/perl -w
 
 #
-# GPIB Connection class for Lab::Bus::LinuxGPIB
+# GPIB Connection class for Lab::Bus::USBtmc
 #
 
 # TODO: Access to GPIB attributes, device clear, ...
 
-package Lab::Connection::LinuxGPIB;
+package Lab::Connection::USBtmc;
 our $VERSION = '3.10';
 
 use strict;
@@ -15,13 +15,10 @@ use Time::HiRes qw (usleep sleep);
 use Lab::Connection::GPIB;
 use Lab::Exception;
 
-eval { require LinuxGpib; LinuxGpib->import(); };
-die("Failed to load LinuxGpib in Lab::Connection::LinuxGPIB!\n$@") if ($@);
-
 our @ISA = ("Lab::Connection::GPIB");
 
 our %fields = (
-	bus_class => 'Lab::Bus::LinuxGPIB',
+	bus_class => 'Lab::Bus::USBtmc',
 	wait_status=>0, # usec;
 	wait_query=>10e-6, # sec;
 	read_length=>1000, # bytes
@@ -77,6 +74,12 @@ sub Query {
 	$self->Write( $options );
 	usleep($wait_query);
 	return $self->Read($options);
+}
+
+sub Clear {
+	my $self=shift;
+	my $options=undef;
+	return $self->bus()->connection_device_clear($self->connection_handle());
 }
 
 

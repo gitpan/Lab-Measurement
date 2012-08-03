@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-package Lab::Instrument::HP34401A;
+package Lab::Instrument::HP34420A;
 our $VERSION = '3.10';
 
 use strict;
@@ -26,7 +26,7 @@ our %fields = (
 		pl_freq => 50,
 	},
 	
-	device_cache =>{			
+	device_cache =>{
 		# TO DO: add range and resolution + get/setter
 	}
 
@@ -65,7 +65,7 @@ sub _id {
     return $self->query('*IDN?');
 }
 
-sub get_value {
+sub _get_value {
     my $self=shift;
     my $value=$self->query('READ?');
     chomp $value;
@@ -175,7 +175,9 @@ sub get_error {
 			return ($1, $2); # ($code, $message)
 		}
 		else {
-			return $error;
+			Lab::Exception::DeviceError->throw(
+				error => "Reading the error status of the device failed in Instrument::HP34401A::get_error(). Something's going wrong here.\n",
+			)	
 		}
 	}
 	else {
@@ -225,11 +227,6 @@ sub set_display_text {
 
 
 
-sub set_range{
-	my $self = shift;
-	
-	# This is the range set function, to be implemented.
-}
 
 sub reset {
     my $self=shift;
@@ -281,7 +278,7 @@ sub autozero {
 	return $az_status;
 }
 
-sub configure_voltage_dc {
+sub _configure_voltage_dc {
 	my $self=shift;
     my $range=shift; # in V, or "AUTO", "MIN", "MAX"
     my $tint=shift;  # integration time in sec, "DEFAULT", "MIN", "MAX"
@@ -318,7 +315,7 @@ sub configure_voltage_dc {
 
 sub configure_voltage_dc_trigger {
 	my $self=shift;
-    my $tint=shift;  # integration time in sec, Default is 10PLC , "MIN" = 0.02 PLC, "MAX" = 100 PLC
+    my $tint=shift;  # integration time in sec, Default is 10PLC*pl_freq(), "MIN" = 0.02PLC , "MAX" = 200PLC
     my $range=shift; # in V, or "DEF"(Default), "MIN", "MAX"
     my $count=shift; # Measurment count, Default = 1
     my $delay=shift; # in seconds, Default = 'MIN'
@@ -334,23 +331,21 @@ sub configure_voltage_dc_trigger {
     Lab::Exception::CorruptParameter->throw( error => "Trigger delay has to be a positive decimal value\n" )
     	if($count !~ /^([+]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/);
     	
-    	
     if(!defined($tint)){
-    	$tint = "DEF";
+    	$tint = 10;
     }	
     elsif($tint =~ /^([+]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/) {
     	# Convert seconds to PLC (power line cycles)
     	$tint*=$self->pl_freq(); 
-    	if( $tint > 100 || $tint < 0.02){
+    	if( $tint > 200 || $tint < 0.02){
     		Lab::Exception::CorruptParameter->throw( error => "Integration time out of bounds (int. time = $tint) in HP34401A::configure_voltage_dc()\n" )
     	}
     }
-    elsif($tint !~ /^(MIN|MAX|DEF)$/ ) {
-		Lab::Exception::CorruptParameter->throw( error => "Integration time has to be set to a positive value, 'DEFAULT', 'MIN' or 'MAX' in HP34401A::configure_voltage_dc()\n" )    	
+    elsif($tint !~ /^(MIN|MAX)$/ ) {
+		Lab::Exception::CorruptParameter->throw( error => "Integration time has to be set to a positive value, 'MIN' or 'MAX' in HP34401A::configure_voltage_dc()\n" )    	
     }
     
-    
-    if($range eq 'AUTO' || !defined($range)) {
+    if(!defined($range)) {
     	$range='DEF';
     }
     elsif($range =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/) {
@@ -365,7 +360,7 @@ sub configure_voltage_dc_trigger {
     }
 
     $self->write( "CONF:VOLT:DC ${range} ${res_cmd}", error_check => 1 );
-    $self->write( "VOLT:DC:NPLC ${tint}", error_check => 1 ) if $res_cmd eq ''; # integration time implicitly set if resolution not given
+	$self->write( "VOLT:DC:NPLC ${tint}", error_check => 1 ) if $res_cmd eq ''; # integration time implicitly set if resolution given
     
     $self->write("*ESE 1");
     $self->write("*CLS");
@@ -377,21 +372,19 @@ sub configure_voltage_dc_trigger {
     
 }
 
-sub read_trig{
+sub trigger{
 	my $self=shift;
-	
+	$self->write( "INIT" );
 
     $self->write( "*TRG");
     $self->write("*OPC");
-	
+    	
 }
 
 sub fetch{
 	my $self = shift;
 	
 	my $value = $self->query( "FETCh?");
-	
-
 
     chomp $value;
 
@@ -399,14 +392,9 @@ sub fetch{
 
     return @valarray;
 }
+	
 
-
-sub init{
-	my $self=shift;
-	$self->write("INIT");
-}	
-
-sub triggered_read {
+sub trigger_read {
     my $self=shift;
 	my $args=undef;
 	if (ref $_[0] eq 'HASH') { $args=shift }
@@ -416,9 +404,8 @@ sub triggered_read {
 	
 	#$args->{'timeout'} = $args->{'timeout'} || $self->timeout();
 
-    $self->init();
-    $self->read_trig();
-    $self->wait_done();
+    $self->write( "INIT" );
+    $self->write( "*TRG");
     my $value = $self->query( "FETCh?", $args);
 	
 
@@ -452,13 +439,13 @@ sub scroll_message {
 
 =head1 NAME
 
-Lab::Instrument::HP34401A - HP/Agilent 34401A digital multimeter
+Lab::Instrument::HP34420A - HP/Agilent 34420A digital multimeter
 
 =head1 SYNOPSIS
 
-  use Lab::Instrument::HP34401A;
+  use Lab::Instrument::HP34420A;
   
-  my $Agi = new Lab::Instrument::HP34401A({
+  my $Agi = new Lab::Instrument::HP34420A({
     connection => new Lab::Connection::GPIB(
 		gpib_board => 0,
 		gpib_address => 14,
@@ -468,10 +455,9 @@ Lab::Instrument::HP34401A - HP/Agilent 34401A digital multimeter
 
 =head1 DESCRIPTION
 
-The Lab::Instrument::HP34401A class implements an interface to the 34401A digital 
-multimeter by Agilent (formerly HP). This module can also be used to address the newer 
-34410A and 34411A multimeters, but doesn't include new functions. Use the 
-L<Lab::Instrument::HP34411A> class for full functionality (not ported yet).
+The Lab::Instrument::HP34420A class implements an interface to the 34420A digital 
+multimeter by Agilent (formerly HP). This module is in big parts equal to the 
+34410A and 34411A multimeter drivers.
 
 =head1 CONSTRUCTOR
 
@@ -497,7 +483,7 @@ When set to "ON", the device takes a zero reading after every measurement.
 
 =head2 configure_voltage_dc
 
-    $hp->configure_voltage_dc($range, $integration_time, $resolution);
+    $hp->configure_voltage_dc($range, $integration_time);
 
 Configures all the details of the device's DC voltage measurement function.
 
@@ -505,91 +491,7 @@ $range is a positive numeric value (the largest expected value to be measured) o
 It specifies the largest value to be measured. You can set any value, but the HP/Agilent 34401A effectively uses
 one of the values 0.1, 1, 10, 100 and 1000V.
 
-$integration_time is the integration time in seconds or MIN MAX DEF. This implicitly sets the provided resolution.
-
-$resolution sets the resolution of the measurment. If set, $integration_time is overwritten.
-
-=head2 configure_voltage_dc_trigger
-
-	$hp->configure_voltage_dc_trigger($range, $integration_time, $count, $delay, $resolution)
-	
-Configures the device for successive triggered reading events. Does not initiate the trigger facility.
-Reading can then be performed calling triggered_read().
-The first three parameters are just passed to configure_voltage_dc.
-
-$count is an integer for the number of successive readings that follow one single trigger event.
-
-$delay is the delay in seconds between these readings.
-
-=head2 triggered_read
-
-	@data = $hp->triggered_read();
-	
-Sends a trigger pulse and fetches the values from the instrument buffer once the reading is finished.
-
-=head2 read_trig()
-
-Sends a read trigger to the device. It does not initialize the trigger facility.
-
-=head2 init()
-
-Initializes the trigger facility. The device is then in the state "waiting for trigger".
-
-=head2 get_value
-
-	$data = hp->get_value();
-
-Inherited from L<Lab::Instrument::Multimeter>. Performs a single reading in the current configuration.
-
-
-=head2 get_voltage_dc
-
-    $datum=$Agi->get_voltage_dc($range,$resolution);
-
-Preset and make a dc voltage measurement with the specified range
-and resolution.
-
-=head2 get_voltage_ac
-
-    $datum=$Agi->get_voltage_ac($range,$resolution);
-
-Preset and make a ac voltage measurement with the specified range
-and resolution.
-
-
-=head2 get_current_dc
-
-	$datum = $hp->get_current_dc($range,$resolution);
-
-Preset and make a dc current measurement with the specified range
-and resolution.
-
-=head2 get_current_ac
-
-	$datum = $hp->get_current_ac($range,$resolution);
-
-Preset and make a ac current measurement with the specified range
-and resolution.
-
-=head2 get_resistance
-
-    $resistance=$Agi->get_resistance($range,$resolution);
-
-Preset and measure resistance with specified range and resolution.
-
-=head2 get_4wresistance
-
-    $resistance=$Agi->get_4wresistance($range,$resolution);
-
-Preset and measure the four way resistance with specified range and resolution.
-
-=head2 get_status()
-
-Returns a status string from the device.
-
-=head2 get_error()
-
-Returns the error string from the device.
+$integration_time is the integration time in seconds. This implicitly sets the provided resolution.
 
 
 =head2 pl_freq
@@ -617,6 +519,20 @@ Inherited from L<Lab::Instrument::Multimeter>
     $Agi->set_display_state($state);
 
 Turn the front-panel display on ($state = "ON") or off ($state = "OFF").
+
+
+=head2 get_resistance
+
+    $resistance=$Agi->get_resistance($range,$resolution);
+
+Preset and measure resistance with specified range and resolution.
+
+=head2 get_voltage_dc
+
+    $datum=$Agi->get_voltage_dc($range,$resolution);
+
+Preset and make a dc voltage measurement with the specified range
+and resolution.
 
 =over 4
 
@@ -657,7 +573,7 @@ at 6 1/2 digits. The resolution parameter only affects the front-panel display.
 
 =head2 configure_voltage_dc_trigger
 
-	$device->trigger_mode($intt, $range, $count, $delay, $resolution)
+	$device->configure_voltage_dc_trigger($intt, $range, $count, $delay, $resolution)
 	
 Configure the multimeter for a triggered reading. 
 
@@ -703,12 +619,6 @@ Sends a trigger signal to the device.
 
 Fetches the data which is currently in the output buffer of the device.
 
-=head2 scroll_message
-
-    $Agi->scroll_message($message);
-  
-Scrolls the message C<$message> on the display of the HP.
-
 =head2 beep
 
     $Agi->beep();
@@ -748,7 +658,6 @@ probably many
 
   Copyright 2004-2006 Daniel Schröer (<schroeer@cpan.org>), 2009-2010 Daniela Taubert, 
             2011 Florian Olbrich, Andreas Hüttel
-            2012 Alois Dirnaichner
 
 This library is free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.
