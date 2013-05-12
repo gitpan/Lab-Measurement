@@ -3,7 +3,7 @@ package Lab::Instrument::YokogawaGS200;
 use strict;
 use warnings;
 
-our $VERSION = '3.10';
+our $VERSION = '3.11';
 
 use feature "switch";
 use Lab::Instrument;
@@ -194,7 +194,7 @@ sub program_halt{
 	$self->write("$cmd");
 }
 
-sub _sweep_to_level {
+sub sweep {
     my $self=shift;
     my $target=shift;
     my $time=shift;
