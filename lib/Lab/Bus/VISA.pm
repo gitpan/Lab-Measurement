@@ -2,7 +2,7 @@
 
 
 package Lab::Bus::VISA;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Lab::VISA;
@@ -23,7 +23,8 @@ our %fields = (
 	wait_query=>10e-6, # sec;
 	query_length=>300, # bytes
 	query_long_length=>10240, #bytes
-	read_length => 1000, # bytes
+	read_length => 1000 # bytes
+
 );
 
 
@@ -50,6 +51,8 @@ sub new {
 	my ($status,$rm)=Lab::VISA::viOpenDefaultRM();
 	if ($status != $Lab::VISA::VI_SUCCESS) { Lab::Exception::VISAError->throw( error => 'Cannot open resource manager: $status\n' ) }
 	$self->default_rm($rm);
+	
+	
 
 	return $self;
 }
@@ -65,6 +68,16 @@ sub _check_resource_name { # @_ = ( $resource_name )
 	) {
 		return 1;
 	}
+	elsif (
+		$resname =~ /^ASRL[0-9]+(::INSTR)?$/		# RS232 INSTR
+	) {
+		return 1;
+	}
+	elsif (
+		$resname =~ /^TCPIP0?::[0-9\.]*(::INSTR)?$/         # TCP/IP INSTR
+	) {
+		return 1;
+	}
 
 	return 0;
 }
@@ -77,7 +90,9 @@ sub connection_new { # @_ = ({ resource_name => $resource_name })
 	my $connection_handle=undef;
 	if (ref $_[0] eq 'HASH') { $args=shift } # try to be flexible about options as hash/hashref
 	else { $args={@_} }
-
+	$self->{config} = $args;	
+	
+		
 	my $resource_name = $args->{'resource_name'};
 
 	Lab::Exception::CorruptParameter->throw( error => 'No resource name given to Lab::Bus::VISA::connection_new().\n' ) if(!exists $args->{'resource_name'});
@@ -86,6 +101,7 @@ sub connection_new { # @_ = ({ resource_name => $resource_name })
 	( $status, $connection_handle ) = Lab::VISA::viOpen( $self->default_rm(), $args->{'resource_name'}, $Lab::VISA::VI_NULL, $Lab::VISA::VI_NULL);
 	if ($status != $Lab::VISA::VI_SUCCESS) { Lab::Exception::VISAError->throw( error => "Cannot open VISA instrument \"$resource_name\". Status: $status", status => $status ); };
 
+	
 	return $connection_handle;
 }
 
@@ -101,16 +117,25 @@ sub connection_read { # @_ = ( $connection_handle, $args = { read_length, brutal
 	my $brutal = $args->{'brutal'} || $self->brutal();
 	my $result_conv = undef;
 	my $read_length = $args->{'read_length'} || $self->read_length();
-
+	my $timeout = $args->{'timeout'} || undef;
+	my $old_timeout_value = undef;
+	
 	my $result = undef;
 	my $status = undef;
 	my $read_cnt = undef;
 
+		
+	if ( defined $timeout )
+		{
+		$self->set_visa_attribute($connection_handle, $Lab::VISA::VI_ATTR_TMO_VALUE, $timeout*1e3);
+		}
 
-
+		
 	($status,$result,$read_cnt)=Lab::VISA::viRead($connection_handle,$read_length);
+	#print "$status,$result,$read_cnt\n";
+	#exit;
 
-	if ( ! ( $status ==  $Lab::VISA::VI_SUCCESS || $status == $Lab::VISA::VI_SUCCESS_TERM_CHAR || $status == $Lab::VISA::VI_ERROR_TMO ) ) {
+	if ( ! ( $status ==  $Lab::VISA::VI_SUCCESS || $status == $Lab::VISA::VI_SUCCESS_TERM_CHAR || $status == $Lab::VISA::VI_ERROR_TMO || $status > 0) ) {
 		Lab::Exception::VISAError->throw(
 			error => "Error in Lab::Bus::VISA::connection_read() while executing $command, Status $status",
 			status => $status,
@@ -124,9 +149,15 @@ sub connection_read { # @_ = ( $connection_handle, $args = { read_length, brutal
 			data => $result,
 		);
 	}
+	
+	if ( defined $timeout )
+		{
+		$self->set_visa_attribute($connection_handle, $Lab::VISA::VI_ATTR_TMO_VALUE, $self->config('timeout')*1e3);
+		}
 
-
-	return substr($result,0,$read_cnt);
+	$result = substr($result,0,$read_cnt);
+	
+	return $result;
 }
 
 
@@ -202,7 +233,16 @@ sub connection_query { # @_ = ( $connection_handle, $args = { command, read_leng
     return $result;
 }
 
-
+sub connection_clear {
+	my $self = shift;
+	my $connection_handle=shift;
+	
+	while (1) {
+		my $result = $self->connection_read($connection_handle, {timeout => 0.1, brutal => 1});
+		if ($result == 0) { last; }	
+	}
+	
+}
 
 sub serial_poll {
 	my $self = shift;
@@ -226,6 +266,39 @@ sub serial_poll {
 	return $sbyte;
 }
 
+sub timeout {
+
+	my $self = shift;
+	my $connection_handle = shift;
+	my $timeout = shift;
+	
+	my $result=Lab::VISA::viSetAttribute($connection_handle, $Lab::VISA::VI_ATTR_TMO_VALUE, $timeout*1e3);
+	if ($result != $Lab::VISA::VI_SUCCESS) 
+		{ 
+		print new Lab::Exception::VISAError(error => "Error while setting Visa Attribute Timeout. $result \n");
+		
+		}
+	return $result;
+}
+
+sub set_visa_attribute {
+	
+	my $self = shift;
+	my $connection_handle = shift;
+	my $attribute = shift;
+	my $value = shift;
+	
+	if ( defined $value )
+		{
+		my $result=Lab::VISA::viSetAttribute($connection_handle, $attribute, $value);
+		if ($result != $Lab::VISA::VI_SUCCESS) 
+			{	 
+			print new Lab::Exception::VISAError(error => "Error while setting Visa Attribute $attribute. $result \n");
+			}
+		return $result;
+		}
+	return;	
+}
 
 
 #

@@ -2,7 +2,7 @@
 
 
 package Lab::Bus::LinuxGPIB;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Scalar::Util qw(weaken);
@@ -305,6 +305,7 @@ sub connection_clear {
 	my $connection_handle=shift;
 
 	ibclr($connection_handle->{'gpib_handle'});
+	ibloc($connection_handle->{'gpib_handle'});
 }
 
 sub timeout {

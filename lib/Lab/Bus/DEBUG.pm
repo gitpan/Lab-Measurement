@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 package Lab::Bus::DEBUG;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use threads;
@@ -12,6 +12,7 @@ use Time::HiRes qw (usleep sleep);
 use Lab::Bus;
 use Data::Dumper;
 use Carp;
+use Lab::Bus::DEBUG::HumanInstrument;
 
 use Lab::Exception
 

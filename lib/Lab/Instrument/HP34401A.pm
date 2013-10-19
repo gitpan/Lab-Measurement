@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 package Lab::Instrument::HP34401A;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Scalar::Util qw(weaken);
@@ -14,7 +14,7 @@ use Lab::Instrument::Multimeter;
 our @ISA = ("Lab::Instrument::Multimeter");
 
 our %fields = (
-	supported_connections => [ 'GPIB', 'DEBUG' ],
+	supported_connections => [ 'GPIB' ],
 
 	# default settings for the supported connections
 	connection_settings => {
@@ -302,7 +302,7 @@ sub configure_voltage_dc {
     	$tint*=$self->pl_freq(); 
     }
     elsif($tint !~ /^(MIN|MAX|DEFAULT)$/) {
-		$tint = 'DEFAULT';
+		Lab::Exception::CorruptParameter->throw( error => "Integration time has to be set to a positive value or 'AUTO', 'MIN' or 'MAX' in HP34401A::configure_voltage_dc()\n" )    	
     }
     
     if(!defined($res_cmd)) {
@@ -388,11 +388,8 @@ sub read_trig{
 
 sub fetch{
 	my $self = shift;
-	my $args = undef;
-	if (ref $_[0] eq 'HASH') { $args=shift; }
-	else { $args={@_}; }
 	
-	my $value = $self->query('FETCh?');
+	my $value = $self->query( "FETCh?");
 	
 
 
@@ -422,8 +419,15 @@ sub triggered_read {
     $self->init();
     $self->read_trig();
     $self->wait_done();
+    my $value = $self->query( "FETCh?", $args);
+	
 
-    return $self->fetch();
+
+    chomp $value;
+
+    my @valarray = split(",",$value);
+
+    return @valarray;
 }
 
 
@@ -521,7 +525,7 @@ $delay is the delay in seconds between these readings.
 
 	@data = $hp->triggered_read();
 	
-Sends a trigger pulse and fetches the values from the instrument buffer once the reading is finished. An array is returned.
+Sends a trigger pulse and fetches the values from the instrument buffer once the reading is finished.
 
 =head2 read_trig()
 
@@ -535,14 +539,14 @@ Initializes the trigger facility. The device is then in the state "waiting for t
 
 	$data = hp->get_value();
 
-Performs a single reading in the current configuration. Best used in combination with configure_voltage_dc.
+Inherited from L<Lab::Instrument::Multimeter>. Performs a single reading in the current configuration.
 
 
 =head2 get_voltage_dc
 
     $datum=$Agi->get_voltage_dc($range,$resolution);
 
-Configures the device and makes a dc voltage measurement with the specified range
+Preset and make a dc voltage measurement with the specified range
 and resolution.
 
 =head2 get_voltage_ac
@@ -641,8 +645,7 @@ at 6 1/2 digits. The resolution parameter only affects the front-panel display.
     $datum=$Agi->get_current_dc($range,$resolution);
 
 Preset and make a dc current measurement with the specified range
-and resolution (both optional). 
-The function to use if time is not critical for your measurement.
+and resolution.
 
 =head2 get_current_ac
 

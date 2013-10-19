@@ -1,5 +1,5 @@
 package Lab::Instrument::SR830;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 
 use strict;
@@ -11,7 +11,7 @@ use Time::HiRes qw (usleep);
 our @ISA = ("Lab::Instrument");
 
 our %fields = (
-	supported_connections => [ 'GPIB', 'VISA_GPIB', 'DEBUG' ],
+	supported_connections => [ 'GPIB', 'VISA_GPIB' ],
 );
 
 sub new {

@@ -1,5 +1,5 @@
 package Lab::Instrument::PD11042;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Time::HiRes qw/usleep/, qw/time/;
@@ -71,7 +71,7 @@ our $GETRIEBEMULTIPLIKATOR = 43;
 our @ISA = ("Lab::Instrument");
 
 our %fields = (
-	supported_connections => [ 'VISA', 'VISA_RS232', 'RS232', 'DEBUG' ],
+	supported_connections => [ 'VISA', 'VISA_RS232', 'RS232' ],
 	baudrate => 9600,
 	databits => 8,
 	stopbits => 1,
@@ -379,7 +379,7 @@ sub init_limits {
 			}
 		else
 			{
-			print "Please move the motor position to the REFERENCE POINT. Enter an angle between -188° ... +180°.\n";
+			print "Please move the motor position to the REFERENCE POINT. Enter an angle between -188Â° ... +180Â°.\n";
 			}		
 		}
 		

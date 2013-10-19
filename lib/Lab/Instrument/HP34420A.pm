@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 package Lab::Instrument::HP34420A;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Scalar::Util qw(weaken);
@@ -14,7 +14,7 @@ use Lab::Instrument::Multimeter;
 our @ISA = ("Lab::Instrument::Multimeter");
 
 our %fields = (
-	supported_connections => [ 'GPIB', 'DEBUG' ],
+	supported_connections => [ 'GPIB' ],
 
 	# default settings for the supported connections
 	connection_settings => {

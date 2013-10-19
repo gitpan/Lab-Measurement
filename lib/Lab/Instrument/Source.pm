@@ -2,15 +2,14 @@ package Lab::Instrument::Source;
 use strict;
 use warnings;
 
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use Lab::Exception;
+use Lab::Instrument;
+use Lab::Measurement::KeyboardHandling qw(labkey_check);
 
 use Time::HiRes qw(usleep gettimeofday);
-
-use Lab::Instrument;
 use Clone qw(clone);
-#use diagnostics;
 
 our @ISA=('Lab::Instrument');
 
@@ -41,6 +40,11 @@ our %fields = (
 
 	default_channel => 1,
 	max_channels => 1,
+	
+	device_cache => { 
+		level => undef,
+		range => undef
+		}
 );
 
 sub new {
@@ -68,8 +72,7 @@ sub new {
 	my $self = $class->SUPER::new(@_);
 	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
-
-
+	
 	#
 	# Parameter parsing
 	#
@@ -178,92 +181,91 @@ sub create_subsource { # create_subsource( channel => $channel_nr, more=>options
 
 
 
-
 sub set_level {
-	my $self=shift;
-	my $voltage=shift;
-	my $args=undef;
-	if(!defined $voltage || ref($voltage) eq 'HASH') {
+	my $self = shift;
+	my ($target, $tail) = $self->_check_args( \@_, ['target'] );
+
+	my $current_level = $self->get_level({read_mode => 'cache'});
+
+	if ( $target == $current_level) {
+		return $current_level;
+	}
+
+	if ( $self->device_settings()->{'gate_protect'} and $self->device_settings()->{'gp_max_units_per_step'} < abs($target - $current_level) ) {
+		return $self->sweep_to_level($target,$tail);
+	} else {
+		return $self->_set_level($target,$tail);
+	}
+}
+
+
+
+sub sweep_to_level {
+	my $self = shift;
+	my $target = shift;
+	
+	my($time, $args) = $self->parse_optional(@_);
+	
+	if(!defined $target || ref($target) eq 'HASH') {
 		Lab::Exception::CorruptParameter->throw( error=>'No voltage given.');
 	}
-	if (ref $_[0] eq 'HASH' && scalar(@_)==1) { $args=shift }
-	elsif ( scalar(@_)%2==0 ) { $args={@_}; }
-	else {
-		Lab::Exception::CorruptParameter->throw(error => "Sorry, I'm unclear about my parameters. See documentation.\nParameters: " . join(", ", ($voltage, @_)) . "\n");
-	}
 	
-	my $current = $self->get_level();
-	
-	return $voltage if $voltage == $current;
-
-	if ($self->device_settings()->{'gate_protect'} && $self->device_settings()->{'gp_max_units_per_step'} < abs($voltage-$current)) {
-		return $voltage=$self->gp_sweep($voltage,@_);
-	} else {
-		return $self->_set_level($voltage,{@_});
-	}
- 
-}
-
-
-sub gp_sweep {
-	my $self   = shift;
-	my $target = shift;
-	my $args = undef;
-	
-	
-	if ( ref $_[0] eq 'HASH' && scalar(@_) == 1 ) { $args = shift }
-	elsif ( scalar(@_) % 2 == 0 ) { $args = {@_}; }
-	else {
-		Lab::Exception::CorruptParameter->throw( error =>
-"Sorry, I'm unclear about my parameters. See documentation.\nParameters: "
-			  . join( ", ", ( $target, @_ ) )
-			  . "\n" );
-	}
-
-
-	if ( !defined $target || ref($target) eq 'HASH' ) {
-		Lab::Exception::CorruptParameter->throw( error => 'No voltage given.' );
-	}
-
 	# Check correct channel setup
-
+	
 	$self->_check_gate_protect();
-
-	# Make sure stepsize is within gate_protect boundaries.
-
+	
+	# Make sure stepsize is within gate_protect boundaries. 
+	
+	my $stepsize = $args->{stepsize} || $self->get_stepsize();
 	my $upstep = $self->get_gp_max_units_per_step();
-
-
+	$upstep = $stepsize if $stepsize < $upstep;
+	
+	if(!defined $stepsize){
+		Lab::Exception::CorruptParameter->throw( 'No stepsize given. Please specify either stepsize or gp_max_units_per_step.');
+	}
+	
 	my $apsec = $self->get_gp_max_units_per_second();
-
+	
 	my $spsec = $self->get_gp_max_step_per_second();
-
-	my $current = $self->get_level( from_device => 1 ) + 0.;
-
-	if ( $target == $current ) {
+	
+	my $current = $self->get_level( from_device => 1 )+ 0.;
+	
+	if( $target == $current ){
 		return $target;
 	}
-
-	# sweep to value
-
-	while ( $current != $target ) {
-		if ( abs( $target - $current ) <= $upstep ) {
-			$current = $self->_set_level( $target, $args );
-		}
-		else {
-			my $next =
-			  ( $target - $current > 0 )
-			  ? $self->_set_level( $current + $upstep, $args )
-			  : $self->_set_level( $current - $upstep, $args );
-			usleep(1.e6/$spsec);
-
-			$current = $next;
-		}
+	
+	if( $self->device_settings()->{"gate_protect"} && $time ){
+		$time = ( abs($target - $current)/$time < $apsec ) ? $time : abs($target-$current)/$apsec;
+	}	
+	elsif(!defined($time)){
+		$time = (abs($target-$current)+0.)/$apsec;
 	}
-	return $current;
+	
+	# sweep to current
+
+	if($self->can("_sweep_to_level")) {
+		return $self->_sweep_to_level($target,$time,$args);
+	}
+	else{
+			
+		my $steptime = $time / ( abs($current - $target)/$upstep );
+		
+		unless( $current != $target){
+			if( abs($target-$current) <= $upstep ){
+				$self->_set_level($target, $args);
+			}
+			my $next = ($target - $current > 0) 
+				? $self->_set_level( $target+$upstep, $args) 
+				: $self->_set_level( $target-$upstep, $args);
+			sleep($steptime);
+			labkey_check();
+			
+			$current = $next;		
+		}
+		return $current;			
+	}
+	
 }
-
-
 
 sub is_me_channel{
 	my $self = shift;

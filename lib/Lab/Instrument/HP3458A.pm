@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 package Lab::Instrument::HP3458A;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Lab::Instrument;
@@ -12,7 +12,7 @@ use Time::HiRes qw (usleep sleep);
 our @ISA = ("Lab::Instrument::Multimeter");
 
 our %fields = (
-	supported_connections => [ 'GPIB', 'DEBUG' ],
+	supported_connections => [ 'GPIB' ],
 
 	# default settings for the supported connections
 	connection_settings => {
@@ -45,10 +45,10 @@ sub _device_init {
 	#$self->connection()->SetTermChar("\r\n");
 	#$self->connection()->EnableTermChar(1);
 	#print "hallo\n";
-	$self->write("END 2"); # or ERRSTR? and other queries will time out, unless using a line/message end character
-	$self->write('TARM AUTO'); # keep measuring
-	$self->write('TRIG AUTO'); # keep measuring
-	$self->write('NRDGS 1,AUTO'); # keep measuring
+	$self->write("END 2", error_check=>1); # or ERRSTR? and other queries will time out, unless using a line/message end character
+	$self->write('TARM AUTO', error_check=>1); # keep measuring
+	$self->write('TRIG AUTO', error_check=>1); # keep measuring
+	$self->write('NRDGS 1,AUTO', error_check=>1); # keep measuring
 }
 
 
@@ -59,14 +59,16 @@ sub _device_init {
 
 sub configure_voltage_dc {
 	my $self=shift;
-    my $range=shift; # in V, or "AUTO", "MIN", "MAX"
-    my $tint=shift;  # integration time in sec, "DEFAULT", "MIN", "MAX"
+
+	my ($range,$tint) = $self->_check_args( \@_, ['range','tint'] );	
+	    
+	my $range_cmd = "FUNC DCV ";
     
     if($range eq 'AUTO' || !defined($range)) {
-    	$range='AUTO';
+    	$range_cmd='ARANGE ON';
     }
     elsif($range =~ /^([+-]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/) {
-	    #$range = sprintf("%e",abs($range));
+	    $range_cmd = sprintf("FUNC DCV %e",abs($range));
     }
     elsif($range !~ /^(MIN|MAX)$/) {
     	Lab::Exception::CorruptParameter->throw( error => "Range has to be set to a decimal value or 'AUTO', 'MIN' or 'MAX' in " . (caller(0))[3] . "\n" );	
@@ -90,12 +92,16 @@ sub configure_voltage_dc {
     }
     
 	# do it
-	$self->write( "FUNC DCV ${range}" );
-	$self->write( "NPLC ${tint}", error_check=>1 );	
+	$self->write( $range_cmd , error_check=>1);
+	$self->write( "NPLC ${tint}", error_check=>1);	
+	#$self->write( "NPLC ${tint}", { error_check=>1 });	
 }
 
 sub configure_voltage_dc_trigger {
 	my $self=shift;
+	
+	my ($range,$tint,$count,$delay) = $self->_check_args( \@_, ['range','tint','count','delay'] );
+    
     my $range=shift; # in V, or "AUTO", "MIN", "MAX"
     my $tint=shift;  # integration time in sec, "DEFAULT", "MIN", "MAX"
     my $count=shift;
@@ -108,12 +114,18 @@ sub configure_voltage_dc_trigger {
 	$delay=0 if !defined($delay);
     Lab::Exception::CorruptParameter->throw( error => "Trigger delay has to be a positive decimal value\n" )
     	if($count !~ /^([+]?)(?=\d|\.\d)\d*(\.\d*)?([Ee]([+-]?\d+))?$/);
-        
+	
 
-    $self->_configure_voltage_dc($range, $tint);
+    $self->configure_voltage_dc($range, $tint);
+
 
 	#$self->write( "PRESET NORM" );
-	$self->write( "INBUF ON", error_check => 1);
+	if ($count > 1){
+		$self->write( "INBUF ON", error_check => 1);
+	}
+	else{
+		$self->write( "INBUF OFF", error_check => 1);
+	}
     $self->write( "TARM AUTO", error_check => 1 );
     $self->write( "TRIG HOLD", error_check => 1 );
     $self->write( "NRDGS $count, AUTO", error_check => 1 );
@@ -180,9 +192,9 @@ sub triggered_read {
 	my $args = scalar(@_)%2==0 ? {@_} : ( ref($_[0]) eq 'HASH' ? $_[0] : undef );
 	Lab::Exception::CorruptParameter->throw( "Illegal parameter hash given!\n" ) if !defined($args);
 	
-	$args->{'timeout'} = $args->{'timeout'} || $self->timeout();
+	$args->{'timeout'} = $args->{'timeout'} || undef;
 
-    my $value = $self->query( "TARM SGL", $args);
+    my $value = $self->query( "TRIG SGL", $args);
 
     chomp $value;
 
@@ -424,9 +436,13 @@ sub preset {
 
 sub get_id {
     my $self=shift;
-    return $self->query('*IDN?', @_);
+    return $self->query('ID?', @_);
 }
 
+sub trg{
+	my $self = shift;
+	$self->write('TRIG SGL', @_);
+	}
 
 sub get_value {
     # Triggers one Measurement and Reads it

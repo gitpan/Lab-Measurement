@@ -1,5 +1,5 @@
 package Lab::Instrument::HP83732A;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Lab::Instrument;
@@ -8,7 +8,7 @@ use Time::HiRes qw (usleep);
 our @ISA = ("Lab::Instrument");
 
 our %fields = (
-	supported_connections => [ 'GPIB', 'DEBUG' ],
+	supported_connections => [ 'GPIB' ],
 
 	# default settings for the supported connections
 	connection_settings => {

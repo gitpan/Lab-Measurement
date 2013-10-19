@@ -11,7 +11,7 @@
 
 
 package Lab::Connection::VISA_GPIB;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Lab::VISA;
@@ -30,6 +30,7 @@ our %fields = (
 	read_length=>1000, # bytes
 	gpib_board=>0,
 	gpib_address=>1,
+	timeout => 2,
 );
 
 
@@ -39,6 +40,8 @@ sub new {
 	my $twin = undef;
 	my $self = $class->SUPER::new(@_); # getting fields and _permitted from parent class, parameter checks
 	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
+
+
 
 	return $self;
 }
@@ -75,6 +78,34 @@ sub _setbus {
 	return $self->bus();
 }
 
+sub _configurebus {
+	my $self = shift;
+	
+
+	#
+	# set VISA Attributes:
+	#
+	
+	# termination character
+	if ( defined $self->config()->{termchar} )
+		{
+		if ($self->config()->{termchar} =~ m/^[0-9]+$/)
+		{
+			$self->config()->{termchar} = chr($self->config()->{termchar});
+		}
+		$self->bus()->set_visa_attribute($self->connection_handle(), $Lab::VISA::VI_ATTR_TERMCHAR_EN, $Lab::VISA::VI_TRUE);
+		$self->bus()->set_visa_attribute($self->connection_handle(), $Lab::VISA::VI_ATTR_TERMCHAR, ord($self->config()->{termchar}));
+		}
+	else
+		{
+		$self->bus()->set_visa_attribute($self->connection_handle(), $Lab::VISA::VI_ATTR_TERMCHAR_EN, $Lab::VISA::VI_FALSE);
+		}
+	
+	# read timeout
+	$self->bus()->set_visa_attribute($self->connection_handle(), $Lab::VISA::VI_ATTR_TMO_VALUE, $self->config()->{timeout}*1e3);
+
+}
+
 
 1;
 
@@ -108,6 +139,7 @@ sub SetTermChar { # the character as string
 #  print "result: $result\n";
   return $result;
 }
+
 
 
 =pod
@@ -190,7 +222,7 @@ Probably few. Mostly because there's not a lot to be done here. Please report.
 =head1 AUTHOR/COPYRIGHT
 
  Copyright 2011      Florian Olbrich
-           2012      Andreas K. Hüttel
+           2012      Andreas K. HÃ¼ttel
 
 This library is free software; you can redistribute it and/or modify it under the same
 terms as Perl itself.

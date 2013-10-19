@@ -10,6 +10,8 @@ my $build = Module::Build->new(
     license           => 'perl',
     requires          => {
 	'Exception::Class'   => '1.0',
+        'Class::ISA'         => 0,
+        'Hook::LexWrap'      => 0,
         'Time::HiRes'        => 0,
         'XML::DOM'           => 0,
         'XML::Generator'     => 0,
@@ -31,19 +33,24 @@ my $build = Module::Build->new(
         'Lab::Instrument'    => '< 2.91',
         'Lab::Tools'         => '< 2.91',
     },
-    script_files => 'scripts',
+    script_files => [ 'scripts/lab-makefilelist.pl',
+	'scripts/lab-makemakefile.pl',
+	'scripts/lab-makeoverview.pl',
+	'scripts/lab-metainfo.pl',
+	'scripts/lab-plotter.pl', 
+	'lib/Lab/XPRESS/Xpression.pl',
+	'lib/Lab/XPRESS/Xpression/bin/vieWx.pl' ],
     create_readme     => 0,
-    dist_author       => ['Daniel Schröer <schroeer@cpan.org>',
-                          'Andreas K. Hüttel <mail@akhuettel.de>',
-                          'Daniela Taubert <daniela.taubert@physik.uni-muenchen.de>', 
-                          'Florian Olbrich <florian.olbrich@devtek.de>',
-                          'Alois Dirnaichner <alois.dirnaichner@physik.uni-r.de>'
+    dist_author       => ['Andreas K. Hüttel <mail@akhuettel.de>',
+                          'Alois Dirnaichner <alois.dirnaichner@physik.uni-r.de>',
+			  'Christian Butschkow <christian.butschkow@physik.uni-r.de>',
+			  'Stefan Geissler <stefan.geissler@physik.uni-r.de>'
                          ],
     meta_merge        => {
         resources       => {
             homepage      => 'http://www.labmeasurement.de/',
-            bugtracker    => 'http://rt.cpan.org/NoAuth/Bugs.html?Dist=Lab-Measurement',
-            MailingList   => 'https://www-mailman.uni-regensburg.de/mailman/listinfo/lab-visa-users',
+            bugtracker    => 'https://www.labmeasurement.de/bugs/',
+            MailingList   => 'https://www-mailman.uni-regensburg.de/mailman/listinfo/lab-measurement-users',
             repository    => 'git://gitorious.org/lab-measurement/lab.git',
         }
     },

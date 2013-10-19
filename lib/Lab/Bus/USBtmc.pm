@@ -2,7 +2,7 @@
 
 
 package Lab::Bus::USBtmc;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 require "sys/ioctl.ph";
 

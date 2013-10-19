@@ -1,10 +1,11 @@
 #!/usr/bin/perl -w
 
 package Lab::Connection;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 
+use Lab::Generic;
 use Time::HiRes qw (usleep sleep);
 use POSIX; # added for int() function
 
@@ -13,7 +14,7 @@ use Data::Dumper;
 our $AUTOLOAD;
 
 
-our @ISA = ();
+our @ISA = ('Lab::Generic');
 
 
 our %fields = (
@@ -33,7 +34,7 @@ sub new {
 	my $config = undef;
 	if (ref $_[0] eq 'HASH') { $config=shift } # try to be flexible about options as hash/hashref
 	else { $config={@_} }
-	my $self={};
+	my $self=$class->SUPER::new(@_);
 	bless ($self, $class);
 	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__);
 
@@ -54,6 +55,12 @@ sub new {
 sub Clear {
 	my $self=shift;
 	
+	# do nothing if connection is blocked
+	if ( $self->{blocked} )
+		{
+		return undef;
+		}
+	
 	return $self->bus()->connection_clear($self->connection_handle()) if ($self->bus()->can('connection_clear'));
 	# error message
 	warn "Clear function is not implemented in the bus ".ref($self->bus())."\n";
@@ -62,10 +69,20 @@ sub Clear {
 
 sub Write {
 	my $self=shift;
+	#my ($command) = $self->_check_args(\@_, ['command']);
 	my $options=undef;
 	if (ref $_[0] eq 'HASH') { $options=shift }
 	else { $options={@_} }
 	
+	
+	# do nothing if connection is blocked
+	if ( $self->{connection_blocked} )
+		{
+		return undef;
+		}
+		
+	#print "Command: ".$command."\n";
+		
 	return $self->bus()->connection_write($self->connection_handle(), $options);
 }
 
@@ -75,8 +92,34 @@ sub Read {
 	my $options=undef;
 	if (ref $_[0] eq 'HASH') { $options=shift }
 	else { $options={@_} }
+	
+	# do nothing if connection is blocked
+	if ( $self->{connection_blocked} )
+		{
+		return undef;
+		}
 
-	return $self->bus()->connection_read($self->connection_handle(), $options);
+	my $result = $self->bus()->connection_read($self->connection_handle(), $options);
+	
+	# cut off all termination characters:
+	my $temp = $/;
+	if ( ref($self->config('termchar')) eq "ARRAY" )
+		{
+		foreach my $term ( @{ $self->config('termchar') } )
+			{
+			$/ = $term;
+			chomp($result);
+			}
+		}
+	else
+		{
+		$/ =  $self->config('termchar');
+		chomp($result);
+		}
+	$/ = $temp;
+	
+	
+	return $result;
 }
 
 
@@ -139,6 +182,33 @@ sub timeout {
 	$self->bus()->timeout($self->connection_handle(), $timo) if defined($self->bus()); # if called by $self->configure() before the bus is created.
 }
 
+sub block_connection {
+	my $self = shift;
+	
+	$self->{connection_blocked} = 1;
+	
+}
+
+sub unblock_connection {
+	my $self = shift;
+	
+	$self->{connection_blocked} = undef;
+	
+}
+
+sub is_blocked {
+	my $self = shift;
+	
+	if ( $self->{connection_blocked} == 1 )
+		{
+		return 1;
+		}
+	else
+		{
+		return 0;
+		}
+	
+}
 
 
 #
@@ -186,6 +256,8 @@ sub _construct {	# _construct(__PACKAGE__);
 		$self->{_permitted}->{$element} = $fields->{$element};
 	}
 	@{$self}{keys %{$fields}} = values %{$fields};
+	
+
 
 	if( $class eq $package ) {
 		$self->configure($self->config()); # so that _setbus has access to all the fields
@@ -216,6 +288,12 @@ sub _setbus { # $self->setbus() create new or use existing bus
 
 	# again, pass it all.
 	$self->connection_handle( $self->bus()->connection_new( $self->config() ));
+}
+
+sub _configurebus {
+	my $self = shift;
+		
+	return;
 }
 
 

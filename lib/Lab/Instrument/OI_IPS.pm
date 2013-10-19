@@ -1,17 +1,21 @@
 
 package Lab::Instrument::OI_IPS;
-our $VERSION = '3.11';
+our $VERSION = '3.20';
 
 use strict;
 use Lab::Instrument;
 use Lab::Instrument::MagnetSupply;
-use Time::HiRes qw (usleep);
+use Time::HiRes qw/usleep/;
+use Time::HiRes qw/sleep/;
+use Time::HiRes qw/tv_interval/;
+use Time::HiRes qw/time/;
+use Time::HiRes qw/gettimeofday/;
 
 our @ISA=('Lab::Instrument::MagnetSupply');
 
 
 our %fields = (
-	supported_connections => [ 'GPIB', 'DEBUG' ],
+	supported_connections => [ 'GPIB','Socket','IsoBus' ],
 
 	# default settings for the supported connections
 	connection_settings => {
@@ -104,7 +108,14 @@ sub ips_get_status {  # freezes magnet???
     return $result;
 }
 
-
+sub ips_get_field {
+    my $self=shift;
+    my $field=undef;
+    my $heater=$self->ips_get_heater();
+    if ($heater == 2 || $heater ==0){$field=$self->ips_read_parameter(18)}
+    else{$field=$self->ips_read_parameter(7);}
+    return $field;
+}
 # returns:
 # 0 == Hold
 # 1 == To Set Point
@@ -133,6 +144,18 @@ sub ips_get_heater {
     return $result;
 }
 
+# returns:
+# 0: At rest (output constant)
+# 1: Sweeping (output changing) 
+# 2: Sweep Limiting (output changing)
+# 3: Sweeping & Sweep Limiting (output changing)
+sub ips_get_sweepmode {
+    my $self=shift;
+    my $result=$self->ips_get_status();
+    $result =~ /.*M.([0-3])/ || die "OI_IPS::ips_get_sweepmode got illegal reply $result\n";
+    $result = $1;
+    return $result;
+}
 
 sub ips_set_activity {
 # 0 Hold
@@ -166,6 +189,7 @@ sub ips_set_target_current {
 sub ips_set_target_field {
     my $self=shift;
     my $field=shift;
+    $field=sprintf("%.5f",$field);
     $self->query("J$field\r");
 }
 
@@ -200,12 +224,46 @@ sub ips_set_current_sweep_rate {
 }
 
 sub ips_set_field_sweep_rate {
-# amps/min
+# T/min
     my $self=shift;
     my $rate=shift;
     $self->query("T$rate\r");
 }
 
+
+sub ips_sweep_until_setpoint_reached{#set, sweeprate
+	my $self=shift;
+	my $set=shift;
+	my $rate=shift || $self->ips_read_parameter(9);
+	if ($rate==0) {die "Error: OI_IPS rate zero in ips_sweep_until_setpoint_reached\n";}
+	$self->ips_set_activity(0);# hold magnet
+	$self->ips_set_field_sweep_rate($rate);
+	my $B_now=$self->ips_get_field();
+	my $DeltaB=$set-$B_now;
+	if ($DeltaB) {
+		my $sweepsign=int($DeltaB/abs($DeltaB));
+		my $TotalSweepTime=int(abs($DeltaB)/$rate*60); #sweeptime in seconds
+		my $Time_Start=[gettimeofday()];
+		my $sweepstart=1;
+		print "Sweeping from $B_now to $set at $rate T/min (total sweep time: $TotalSweepTime seconds)\n";
+		$| = 1;
+		do {
+			sleep(1);
+			my $t=tv_interval( $Time_Start  );
+			my $set_field=$DeltaB/$TotalSweepTime*($t+1)+$B_now;
+			if ( ($sweepsign*($set_field - $set) ) > 0 ) {$set_field = $set};
+			$self->ips_set_target_field($set_field);
+			if ($sweepstart){$self->ips_set_activity(1);$sweepstart=0;}# start sweep
+			print "Magnetic field: ", $self->ips_get_field(), "T\r";		
+		} while ( $self->ips_get_sweepmode() );
+		$| = 0;
+	}
+	print "\nField stopped changing. ";
+	$B_now=$self->ips_get_field();
+	print "Final field: $B_now\n";
+	if (abs($B_now - $set) > 0.00001){ die "B_GoToSet: field stopped changing but setpoint was not reached: got $B_now instead of $set\n";};
+	$self->ips_set_activity(0); # Hold magnet
+}
 
 ###########################
 # now comes the interface #
