@@ -7,7 +7,7 @@ use File::Copy;
 use Lab::XPRESS::Data::XPRESS_logger;
 use Lab::XPRESS::Sweep::Sweep;
 
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 our $counter = 0;
 our $GLOBAL_PATH = "./";
@@ -31,6 +31,12 @@ sub new {
 	$self->{skiplog} = 0;
 	
 	my $filenamebase = shift;
+	
+	if (not $filenamebase =~ /(.+)(\..+)\b/)
+	{
+		$filenamebase .= ".dat";
+	}
+	
 	my $foldername = $DEFAULT_FOLDER;
     $foldername = shift if @_;
 	
@@ -61,7 +67,7 @@ sub create_folder {
 
 	my $self = shift;
 	my $filenamebase = shift;
-	my $foldername = shift;
+	my $foldername = shift || $DEFAULT_FOLDER;
 
 	$filenamebase =~ s/\\/\//g;
 	$filenamebase =~ s/\.\///g;
@@ -130,7 +136,7 @@ sub create_InfoFile {
 	
 	foreach my $instrument (@{Lab::Instrument::REGISTERED_INSTRUMENTS})
 		{
-		print $LOG $instrument->get_id() , "\n\n";
+		print $LOG $instrument->get_id()." ( ".$instrument->get_name()." )" , "\n\n";
 		print $LOG $instrument->sprint_config(), "\n";
 		print $LOG "-" x 100, "\n\n";
 		}

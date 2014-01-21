@@ -1,6 +1,6 @@
 package Lab::XPRESS::Sweep::Temperature;
 
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use Lab::XPRESS::Sweep::Sweep;
 use Statistics::Descriptive;
@@ -25,7 +25,7 @@ sub new {
 		duration	=> [1],
 		stepwidth => 1,
 		mode	=> 'continuous',
-		allowed_instruments => ['Lab::Instrument::ITC'],
+		allowed_instruments => ['Lab::Instrument::ITC', 'Lab::Instrument::TCD'],
 		allowed_sweep_modes => ['continuous', 'step', 'list'],
 		
 		sensor => undef,
@@ -33,7 +33,9 @@ sub new {
 		stabilize_observation_time => 3*60,
 		tolerance_setpoint => 0.2,
 		std_dev_instrument => 0.15,
-		std_dev_sensor => 0.15
+		std_dev_sensor => 0.15,
+		
+		max_stabilization_time => undef
 		
 		};
 	
@@ -155,11 +157,20 @@ sub stabilize {
 	my $criterion_std_dev_INSTR = 0;
 	my $criterion_std_dev_SENSOR = 1;
 
-	print "Stabilize Temperature at $setpoint K ... \n";
+	
 	$self->{config}->{instrument}->set_heatercontrol('AUTO');
 	$self->{config}->{instrument}->set_T($setpoint);
 	
 	local $| = 1;
+	
+	my $time0 = time();
+
+	print "Stabilize Temperature at $setpoint K ... \n\n";
+	#my $line1  = "\rElapsed: $elapsed_time \n Current Temp INSTR: @T_INSTR[-1] \n Current Temp SENSOR: @T_SENSOR[-1] \n ";
+	#my $line2 = "Current Median: @MEDIAN_INSTR[-1] \n Std. Dev. T Instr. : $INSTR_STD_DEV \n Std. Dev. T Sensor : $SENSOR_STD_DEV \n ";
+	#my $line3 = "CRIT SETPOINT: $criterion_setpoint \n CRIT Std. Dev. T Instr. : $criterion_std_dev_INSTR \n CRIT Std. Dev. T Sensor : $criterion_std_dev_SENSOR \n ";
+	print " Time    "." | "." TEMP "." | "."SENS "." | "."MED_I"." | "."ISD "." | "."SSD "." | "."C1"." | "."C2"." | "."C3"." \n";
+	
 	
 	while (1) {
 	
@@ -256,20 +267,21 @@ sub stabilize {
 		
 		my $elapsed_time = $self->convert_time(time()-$time0);
 		
-		my $line1  = "\rElapsed: $elapsed_time \n Current Temp INSTR: @T_INSTR[-1] \n Current Temp SENSOR: @T_SENSOR[-1] \n ";
-		my $line2 = "Current Median: @MEDIAN_INSTR[-1] \n Std. Dev. T Instr. : $INSTR_STD_DEV \n Std. Dev. T Sensor : $SENSOR_STD_DEV \n ";
-		my $line3 = "CRIT SETPOINT: $criterion_setpoint \n CRIT Std. Dev. T Instr. : $criterion_std_dev_INSTR \n CRIT Std. Dev. T Sensor : $criterion_std_dev_SENSOR \n ";
 		
-		my $output = $line1.$line2.$line3;
+		
+		my $output = $elapsed_time." | ".sprintf("%3.3f",@T_INSTR[-1])." | ".sprintf("%3.3f", @T_SENSOR[-1])." | ".sprintf("%3.3f", @MEDIAN_INSTR[-1])." | ".sprintf("%2.3f", $INSTR_STD_DEV)." | ".sprintf("%2.3f", $SENSOR_STD_DEV)." | ".$criterion_setpoint." | ".$criterion_std_dev_INSTR." | ".$criterion_std_dev_SENSOR."\r";
 		
 		print $output;
 		
 		if ($criterion_std_dev_INSTR * $criterion_std_dev_SENSOR * $criterion_setpoint) {
 			last;
+		elsif (defined $self->{config}->{max_stabilization_time} and ( (time() - $time0) >= $self->{config}->{max_stabilization_time} )) {
+			last;
 			print "\n";
 		}
+
 		else {
-			print "\033[2J";
+			
 		}
 
 		
@@ -278,7 +290,7 @@ sub stabilize {
 	
 	$| = 0;
 	
-	print "Temperature stabilized at $setpoint K \n";
+	print "\nTemperature stabilized at $setpoint K \n";
 }
 
 sub convert_time { 
@@ -292,10 +304,7 @@ sub convert_time {
 	my $minutes = int($time / 60); 
 	my $seconds = $time % 60; 
 	  
-	$days = $days < 1 ? '' : $days .'d '; 
-	$hours = $hours < 1 ? '' : $hours .'h '; 
-	$minutes = $minutes < 1 ? '' : $minutes . 'm '; 
-	$time = $days . $hours . $minutes . $seconds . 's'; 
+	$time =  sprintf("%02dh",$hours) . sprintf("%02dm",$minutes) . sprintf("%02ds",$seconds); 
 	return $time; 
 }
 

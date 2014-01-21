@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 package Lab::Instrument::HP3458A;
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use strict;
 use Lab::Instrument;
@@ -445,9 +445,9 @@ sub trg{
 	}
 
 sub get_value {
-    # Triggers one Measurement and Reads it
+
     my $self=shift;
-    #my $val=$self->query("TRIG SGL", @_);
+
     my $val=$self->read(@_);
     chomp $val;
     return $val;

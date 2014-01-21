@@ -1,6 +1,6 @@
 package Lab::XPRESS::Data::XPRESS_plotter;
 
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use strict;
 use Time::HiRes qw/gettimeofday tv_interval/;
@@ -30,6 +30,11 @@ sub new {
 	my %plot = %$plot;
 	
 	$self->{PAUSE} = -1; # negative value ==> pause disabled, positive value ==> pause enabled
+	
+	if ( $self->{plot}->{refresh} eq 'block' )
+		{
+		$self->{PAUSE} = 1;
+		}
 			
 	$self->{gpipe} = $self->get_gnuplot_pipe();
 	

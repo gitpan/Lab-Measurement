@@ -2,7 +2,7 @@
 # Hence termchar => \n. For Isobus connection, no additional termchar must be added. Hence IsoEnableTermChar => 0.
 
 package Lab::Instrument::IPS;
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use strict;
 use Time::HiRes qw/usleep/, qw/time/;
@@ -35,12 +35,12 @@ our %fields = (
 	},
 
 	device_settings => { 
+		id => 'Oxford IPS',
 		has_switchheater => 0,
 		read_default => 'device'
 	},
 	
 	device_cache =>{
-		id => 'Oxford IPS',
 		targetfield => undef,
 		rate => undef,
 		field => undef,
@@ -239,7 +239,7 @@ $self->_set_activity(0);
 sub tosetpoint {
 	my $self = shift;
 
-	$self->_set_activity(1)
+	$self->_set_activity(1);
 
 	sleep(1) while $self->active();
 }

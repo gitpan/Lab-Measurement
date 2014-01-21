@@ -1,7 +1,7 @@
 #2012-10-12 Geissler / Butschkow
 
 package Lab::Instrument::TCD;
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use strict;
 use Lab::Instrument;
@@ -28,7 +28,7 @@ our %fields = (
 
 	device_cache => {
 		id => 'Temperature Control',
-		T => undef
+		#T => undef
 	}
 
 );
@@ -145,6 +145,12 @@ sub set_heateroff{
 
 	$self->write("heaterOff\r\n");
 	
+}
+
+sub set_heatercontrol {
+	my $self = shift;
+	
+	return;
 }
 
 # sub stabilize_T {

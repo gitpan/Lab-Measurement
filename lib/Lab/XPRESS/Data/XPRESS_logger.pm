@@ -1,6 +1,6 @@
 package Lab::XPRESS::Data::XPRESS_logger;
 
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use Time::HiRes qw/usleep/, qw/time/;
 use strict;
@@ -94,7 +94,7 @@ sub open_file {
 			$temp_filename =~ s/\(/\\\(/g;
 			$temp_filename =~ s/\)/\\\)/g;
 			#print $temp_filename."\n";
-			if ( $file =~ /($temp_filename)(_(\d+))?(\.*)\b/ )
+			if ( $file =~ /($temp_filename)(_(\d+))?($filenameextension)\b/ )
 				{	
 				if ( $3 > $max_index )
 					{

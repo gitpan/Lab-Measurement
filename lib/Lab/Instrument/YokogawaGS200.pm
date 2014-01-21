@@ -3,7 +3,7 @@ package Lab::Instrument::YokogawaGS200;
 use strict;
 use warnings;
 
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use feature "switch";
 use Lab::Instrument;
@@ -39,7 +39,7 @@ our %fields = (
 	
 	# If class does not provide set_$var for those, AUTOLOAD will take care.
 	device_cache => {
-		function			=> "VOLT", # 'VOLT' - voltage, 'CURR' - current
+		function			=> undef,
 		range			=> undef,
 		level			=> undef,
 		output					=> undef,
@@ -62,7 +62,7 @@ sub set_voltage {
     my $self=shift;
     my $voltage=shift;
     
-    my $function = $self->get_function();
+    my $function = $self->get_function({read_mode => 'cache'});
 
     if($function ne 'VOLT'){
     	Lab::Exception::CorruptParameter->throw(

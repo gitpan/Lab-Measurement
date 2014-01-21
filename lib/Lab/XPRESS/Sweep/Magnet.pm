@@ -1,6 +1,6 @@
 package Lab::XPRESS::Sweep::Magnet;
 
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use Lab::XPRESS::Sweep::Sweep;
 use Time::HiRes qw/usleep/, qw/time/;
@@ -126,7 +126,12 @@ sub exit_loop {
 
 sub get_value {
 	my $self = shift;
+	if ($self->{config}->{use_persistentmode}){
+		return $self->{config}->{instrument}->get_persistent_field();
+	}
+	else{
 	return $self->{config}->{instrument}->get_field();
+}
 }
 
 

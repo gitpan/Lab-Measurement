@@ -1,5 +1,5 @@
 package Lab::Instrument::HP83732A;
-our $VERSION = '3.20';
+our $VERSION = '3.30';
 
 use strict;
 use Lab::Instrument;
@@ -41,18 +41,41 @@ sub reset {
     $self->write('*RST');
 }
 
+sub set_frq{
+	my $self = shift;
+	my ($freq) = $self->_check_args( \@_, ['value'] );
+	#my $freq = shift;
+	$self->set_cw($freq);
+	
+}
+
 sub set_cw {
     my $self=shift;
     my $freq=shift;
-	$freq/=1000000;
-    $self->write("FREQuency:CW $freq MHZ");
+
+    $self->write("FREQuency:CW $freq Hz");
+}
+
+sub get_frq{
+	my $self = shift;
+	
+	my $freq = $self->query("FREQuency:CW?");
+
+	return $freq;
+	
 }
 
 sub set_power {
     my $self=shift;
-    my $power=shift;
+	my ($power) = $self->_check_args( \@_, ['value'] );
 
     $self->write("POWer:LEVel $power DBM");
+}
+
+sub get_power {
+	my $self = shift;
+	
+	return $self->query("POWer:LEVel?");
 }
 
 sub power_on {
