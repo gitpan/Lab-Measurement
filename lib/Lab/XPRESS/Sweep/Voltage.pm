@@ -1,6 +1,6 @@
 package Lab::XPRESS::Sweep::Voltage;
 
-our $VERSION = '3.30';
+our $VERSION = '3.31';
 
 use Lab::XPRESS::Sweep::Sweep;
 use Time::HiRes qw/usleep/, qw/time/;
@@ -23,7 +23,7 @@ sub new {
 		duration	=> [],
 		mode	=> 'continuous',
 		jump => 0,
-		allowed_instruments => ['Lab::Instrument::Yokogawa7651', 'Lab::Instrument::Keithley2400'],
+		allowed_instruments => ['Lab::Instrument::Yokogawa7651', 'Lab::Instrument::Keithley2400','Lab::Instrument::YokogawaGS200'],
 		allowed_sweep_modes => ['continuous', 'list', 'step'],
 		number_of_points => [undef]
 		};

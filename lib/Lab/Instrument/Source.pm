@@ -2,7 +2,7 @@ package Lab::Instrument::Source;
 use strict;
 use warnings;
 
-our $VERSION = '3.30';
+our $VERSION = '3.31';
 
 use Lab::Exception;
 use Lab::Instrument;
@@ -31,6 +31,8 @@ our %fields = (
 		gp_equal_level => 0,
 		fast_set => undef,
 		autorange => 0, 	# silently ignored by instruments (or drivers) which don't support autorange
+		
+		read_default => 'cache'
 	},
 
 	# Config hash passed to subchannel objects, or to $self->configure()
@@ -198,7 +200,107 @@ sub set_level {
 	}
 }
 
+sub get_value { 
+    my $self = shift;
 
+    return $self->get_level(@_); 
+}
+
+sub check_sweep_config{
+	my $self = shift;
+    my ($target, $rate, $time, $tail) = $self->_check_args( \@_, ['points', 'rate', 'time'] );
+
+
+    # get current position:
+    my $start = $self->get_level({read_mode => 'device'},$tail); 
+
+    my $duration;
+
+    if (defined $rate and not defined $time) {
+        $duration = int(abs($start-$target)/abs($rate));
+    }
+    elsif (not defined $rate and defined $time) {
+        $duration = $time;
+        $rate = abs($start-$target)/$time;
+    }
+    elsif (defined $rate and defined $time) {
+        Lab::Exception::CorruptParameter->throw("Definition of rate and time simultanousely is inconsistent!");
+    }
+    else {
+        if ($self->device_settings()->{gate_protect}) {
+            $rate = $self->device_settings()->{gp_max_units_per_second};
+            $duration = int(abs($start-$target)/abs($rate));
+        }
+        else {
+            Lab::Exception::CorruptParameter->throw("If not in gate protection mode, please define at least rate or time");  
+        }
+        
+    }
+
+	
+    
+    # check if the given target value and given rate are within the GATE-PROTECTION limts:
+    if ( $self->device_settings()->{gate_protect} )
+        {
+        
+        if ( $target < $self->device_settings()->{gp_min_units} or $target > $self->device_settings()->{gp_max_units} )
+            {
+            Lab::Exception::CorruptParameter->throw( error=>  "SWEEP-TARGET $target exceeds GATE_PROTECTION LIMITS: ".$self->device_settings()->{gp_min_volt}." ... ".$self->device_settings()->{gp_max_volt});
+            }
+        if ( abs($rate) > abs($self->device_settings()->{gp_max_units_per_second}) )
+            {
+            Lab::Exception::CorruptParameter->throw( error=>  "SWEEP-RATE $rate exceeds GATE_PROTECTION LIMITS: ".$self->device_settings()->{gp_max_units_per_second});
+            }
+        }
+    
+    
+
+    
+    # check if rate is within limits:
+    if ( $rate == 0 )
+        {
+        print Lab::Exception::CorruptParameter->new( error=>  " Sweep rate too small: Maximum Sweep duration is limited to 176400 sec. ");
+        $rate = abs($start-$target)/176400;
+        }
+    elsif ( abs($start-$target)/$rate > 176400 )
+        {
+        print Lab::Exception::CorruptParameter->new( error=>  " Sweep rate too small: Maximum Sweep duration is limited to 176400 sec. ");
+        $rate = abs($start-$target)/176400;
+        }
+    elsif ( abs($start-$target)/$rate < 0.1 )
+        {
+        #print Lab::Exception::CorruptParameter->new( error=>  " Sweep rate too large: Minimum Sweep duration is limited to 0.1 sec. ");
+        $duration = 0.1;
+        }
+    
+    # calculate duration and the number of points for the sweep:
+      
+       
+    # Test if $target in range and start programming the device:
+    my $range=$self->get_range({read_mode => 'cache'},$tail);
+      
+    if ($target>$range)
+            {
+               Lab::Exception::CorruptParameter->throw( error=>  "SWEEP-TARGET $target exceeds selected RANGE $range. Change SWEEP-TARGET to MAX within RANGE.");
+            }
+    elsif ($target< -$range) 
+            {
+               Lab::Exception::CorruptParameter->throw( error=>  "SWEEP-TARGET $target exceeds selected RANGE $range. Change SWEEP-TARGET to MAX within RANGE.");
+            }
+
+    # split sweep longer than 3600 sec into sections       
+    my $sections = int($duration / 3600)+1;
+    $duration = sprintf ("%.1f", $duration/$sections);
+
+    if ( $sections > 50)               
+            {
+            Lab::Exception::CorruptParameter->throw( error=>  "Configured Sweep takes too long. Sweep time is limited to 176400s.");   
+            }
+            
+           
+	return ($start,$target,$duration,$sections,$tail);			
+
+}
 
 sub sweep_to_level {
 	my $self = shift;
