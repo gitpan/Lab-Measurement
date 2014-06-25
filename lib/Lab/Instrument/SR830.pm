@@ -1,5 +1,5 @@
 package Lab::Instrument::SR830;
-our $VERSION = '3.31';
+our $VERSION = '3.32';
 
 
 use strict;
@@ -20,6 +20,7 @@ sub new {
 	my $self = $class->SUPER::new(@_);
 	$self->${\(__PACKAGE__.'::_construct')}(__PACKAGE__); 
 
+	$self->empty_buffer();
 	return $self;
 }
 
@@ -30,9 +31,15 @@ sub new {
 
 sub empty_buffer{
     my $self=shift;
-    my $times=shift;
-    for (my $i=0;$i<$times;$i++) {
-		eval { $self->read( brutal => 1 ) };
+    my ($times) = $self->_check_args( \@_, ['times'] );
+    if ($times){
+      for (my $i=0;$i<$times;$i++) {
+		 eval { $self->read( brutal => 1 ) };
+      }
+    } else {
+      while($self->read( brutal => 1 )){
+	print "Cleaning buffer."
+      }
     }
 }
 
@@ -41,11 +48,23 @@ sub set_frequency {
     $self->write("FREQ $freq");
 }
 
+sub set_frq{
+	my $self = shift;
+	my ($freq) = $self->_check_args( \@_, ['value'] );
+	$self->set_frequency($freq);
+}
+
 sub get_frequency {
     my $self = shift;
     my $freq=$self->query("FREQ?");
     chomp $freq;
     return $freq; # frequency in Hz
+}
+
+sub get_frq{
+	my $self = shift;
+	my $freq = $self->get_frequency();
+	return $freq;
 }
 
 sub set_amplitude {

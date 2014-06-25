@@ -1,17 +1,20 @@
 package Lab::XPRESS::Sweep::Sweep;
 
-our $VERSION = '3.31';
+our $VERSION = '3.32';
 
 use Time::HiRes qw/usleep/, qw/time/;
 use POSIX qw(ceil);
 use Term::ReadKey;
 use Storable qw(dclone);
+use Lab::Generic;
 use Lab::XPRESS::Sweep::Dummy;
 use Lab::XPRESS::Utilities::Utilities;
 use Lab::Exception;
 use strict;
 use Storable qw(dclone);
 use Carp qw(cluck croak);
+
+our @ISA = ('Lab::Generic');
 
 our $PAUSE = 0;
 our $ACTIVE_SWEEPS = ();
@@ -24,7 +27,7 @@ our $AUTOLOAD;
 sub new {
     my $proto = shift;
     my $class = ref($proto) || $proto;    
-	my $self = bless {}, $class;
+	my $self = $class->SUPER::new(@_);
 	
 	$self->{default_config} = {
 		instrument => undef,
@@ -107,8 +110,9 @@ sub new {
 	$self->{pause} = 0;	
 	$self->{active} = 0;
 	$self->{repetition} = 0;	
-			
-    return $self;
+	
+	
+    return bless $self, $class;
 }
 
 sub prepaire_config {
@@ -513,7 +517,7 @@ sub start {
 	
 	# link break signals to default functions:
 	$SIG{BREAK} = \&enable_pause;
-	$SIG{INT} = \&abort;
+	#$SIG{INT} = \&abort;
 
 	for ( my $i = 1; ($i <= $self->{config}->{repetitions}) or ($self->{config}->{repetitions} < 0); $i++)
 		{
@@ -945,8 +949,7 @@ sub active {
 }
 
 sub abort {
-
-	print "abort\n";
+	
 	foreach my $sweep (@{$ACTIVE_SWEEPS})
 		{
 		$sweep->exit();
@@ -1046,15 +1049,14 @@ sub check_loop_duration {
 	my $delta_time = ($self->{loop}->{t1}-$self->{loop}->{t0}) + $self->{loop}->{overtime};
 
 	
-	
-	while((@{$self->{config}->{interval}}[$self->{sequence}] - $delta_time) > 0.2)
-		{
-		my $time0 = time();
-		if (defined $self->{config}->{instrument} and $self->{config}->{instrument}->can("active")) 
-			{ 
-				$self->{config}->{instrument}->active();
+	if (defined $self->{config}->{instrument} and $self->{config}->{instrument}->can("active")) 
+		{ 
+		while((@{$self->{config}->{interval}}[$self->{sequence}] - $delta_time) > 0.2)
+			{
+			my $time0 = time();
+			$self->{config}->{instrument}->active();
+			$delta_time = $delta_time +((time() - $time0));
 			}
-		$delta_time = $delta_time +((time() - $time0));
 		}
 
 	if ($delta_time > @{$self->{config}->{interval}}[$self->{sequence}])

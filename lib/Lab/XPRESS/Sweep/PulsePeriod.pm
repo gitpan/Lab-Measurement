@@ -1,4 +1,4 @@
-package Lab::XPRESS::Sweep::Power;
+package Lab::XPRESS::Sweep::PulsePeriod;
 
 our $VERSION = '3.32';
 
@@ -16,13 +16,13 @@ sub new {
 	my @args=@_;
     my $class = ref($proto) || $proto; 
 	my $self->{default_config} = {
-		id => 'Power_Sweep',
-		filename_extension => 'POW=',
+		id => 'PulsePeriod_Sweep',
+		filename_extension => 'PulsePeriod=',
 		interval	=> 1,
 		points	=>	[],
 		rate => [1],
 		mode	=> 'step',
-		allowed_instruments => ['Lab::Instrument::HP83732A','Lab::Instrument::MG369xB','Lab::Instrument::RSSMB100A'],
+		allowed_instruments => ['Lab::Instrument::RSSMB100A'],
 		allowed_sweep_modes => ['list', 'step'],
 		number_of_points => [undef]
 		};
@@ -37,7 +37,7 @@ sub go_to_sweep_start {
 	my $self = shift;
 	
 	# go to start:
-	$self->{config}->{instrument}->set_power({value => @{$self->{config}->{points}}[0]});
+	$self->{config}->{instrument}->set_pulseperiod({value => @{$self->{config}->{points}}[0]});
 }
 
 sub start_continuous_sweep {
@@ -51,7 +51,7 @@ sub start_continuous_sweep {
 sub go_to_next_step {
 	my $self = shift;
 
-	$self->{config}->{instrument}->set_power({value => @{$self->{config}->{points}}[$self->{iterator}]});
+	$self->{config}->{instrument}->set_pulseperiod({value => @{$self->{config}->{points}}[$self->{iterator}]});
 
 }
 
@@ -73,7 +73,7 @@ sub exit_loop {
 
 sub get_value {
 	my $self = shift;
-	return $self->{config}->{instrument}->get_power();
+	return $self->{config}->{instrument}->get_pulseperiod();
 }
 
 
@@ -89,7 +89,7 @@ sub exit {
 
 =head1 NAME
 
-	Lab::XPRESS::Sweep::Power - Power-Sweep
+	Lab::XPRESS::Sweep::Frequency - Frequency-Sweep
 
 .
 
@@ -99,17 +99,17 @@ sub exit {
 	my $hub = new Lab::XPRESS::hub();
 	
 	
-	my $Osc = $hub->Instrument('HP83732A', 
+	my $Osc = $hub->Instrument('SignalRecovery726x', 
 		{
 		connection_type => 'VISA_GPIB',
 		gpib_address => 2
 		});
 	
-	my $sweep_voltage = $hub->Sweep('Power',
+	my $sweep_voltage = $hub->Sweep('Frequency',
 		{
 		instrument => $Osc,
-		points => [0,10],
-		stepwidth => [1],
+		points => [100,1e5],
+		stepwidth => [1e5,100],
 		mode => 'step',		
 		backsweep => 0 
 		});
@@ -121,14 +121,14 @@ sub exit {
 
 Parent: Lab::XPRESS::Sweep::Sweep
 
-The Lab::XPRESS::Sweep::Power class implements a module for power sweeps in the Lab::XPRESS::Sweep framework.
+The Lab::XPRESS::Sweep::Frequency class implements a module for frequncy sweeps in the Lab::XPRESS::Sweep framework.
 
 .
 
 =head1 CONSTRUCTOR
 	
 
-		my $sweep_voltage = $hub->Sweep('Power',
+		my $sweep_voltage = $hub->Sweep('Frequency',
 		{
 		instrument => $Osc,
 		points => [100,1e5],
@@ -137,7 +137,7 @@ The Lab::XPRESS::Sweep::Power class implements a module for power sweeps in the 
 		backsweep => 0 
 		});
 
-Instantiates a new power sweep.
+Instantiates a new frequency-sweep.
 
 .
 
@@ -152,7 +152,7 @@ Allowed instruments: Lab::Instrument::SignalRecovery726x
 
 =head2 mode [string] (default = 'step' | 'list')
 	
-step: measurements will be performed at discrete values of the power between start and end points defined in parameter points, seperated by steps defined in parameter stepwidth
+step: measurements will be performed at discrete values of the frequency between start and end points defined in parameter points, seperated by steps defined in parameter stepwidth
 
 list: measurements will be performed at a list frequencies defined in parameter points
 	
@@ -165,7 +165,7 @@ First value is appraoched before measurement begins.
 
 
 Case mode => 'step' :
-Same as in 'continuous' but power will be swept in stop and go mode. 
+Same as in 'continuous' but frequency will be swept in stop and go mode. 
 
 Case mode => 'list' :
 Array of values, with minimum length 1, that are approached in sequence to perform a measurment.
@@ -209,7 +209,7 @@ Number_of_points has to be an array of length '1' or greater. The values defines
 	
 .
 
-=head2 id [string] (default = 'Power_Sweep')
+=head2 id [string] (default = 'Frequency_Sweep')
 
 Just an ID.
 

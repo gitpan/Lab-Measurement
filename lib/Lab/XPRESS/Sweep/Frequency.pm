@@ -1,6 +1,6 @@
 package Lab::XPRESS::Sweep::Frequency;
 
-our $VERSION = '3.31';
+our $VERSION = '3.32';
 
 use Lab::XPRESS::Sweep::Sweep;
 use Time::HiRes qw/usleep/, qw/time/;
@@ -22,7 +22,7 @@ sub new {
 		points	=>	[],
 		rate => [1],
 		mode	=> 'step',
-		allowed_instruments => ['Lab::Instrument::SignalRecovery726x','Lab::Instrument::HP83732A'],
+		allowed_instruments => ['Lab::Instrument::SignalRecovery726x','Lab::Instrument::SR830','Lab::Instrument::HP83732A','Lab::Instrument::MG369xB','Lab::Instrument::RSSMB100A'],
 		allowed_sweep_modes => ['list', 'step'],
 		number_of_points => [undef]
 		};

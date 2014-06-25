@@ -1,13 +1,13 @@
 #!/usr/bin/perl -w
 
 package Lab::Connection;
-our $VERSION = '3.31';
+our $VERSION = '3.32';
 
 use strict;
 
+#use POSIX; # added for int() function
 use Lab::Generic;
 use Time::HiRes qw (usleep sleep);
-use POSIX; # added for int() function
 
 use Carp;
 use Data::Dumper;
